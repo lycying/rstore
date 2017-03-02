@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+		<meta name="description" content="">
+		<meta name="author" content="">
+
+		<title>Rstore Eyes Plugin | v1.0 </title>
+
+		<link href="css/bootstrap.min.css" rel="stylesheet">
+		<link href="css/bootstrap-table.min.css" rel="stylesheet">
+
+		<script src="js/json_syntax_highlight.js"></script>
+		<script src="js/jquery-3.1.1.min.js"></script>
+		<script src="js/bootstrap.min.js"></script>
+		<script src="js/bootstrap-table.min.js"></script>
+		<script src="js/jsoneditor.min.js"></script>
+		<script src="js/common.js"></script>
+
+		<style>
+.breadcrumb{
+	margin-top:50px;
+}
+		.string { color: green; }
+		.number { color: darkorange; }
+		.boolean { color: blue; }
+		.null { color: magenta; }
+		.key { color: red; }
+		</style>
+	</head>
+
+	<body>
+		<div id="common_confirm_model" class="modal">
+			<div class="modal-dialog modal-sm">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">&times;</span></button>
+						<h5 class="modal-title"><i class="fa fa-exclamation-circle"></i> <span class="title"></span></h5>
+					</div>
+					<div class="modal-body small">
+						<p ><span class="message"></span></p>
+					</div>
+					<div class="modal-footer" >
+						<button type="button" class="btn btn-primary ok" data-dismiss="modal">OK</button>
+						<button type="button" class="btn btn-default cancel" data-dismiss="modal">Cancel</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="myModal" class="modal fade" role="dialog">
+			<div class="modal-dialog" role="document">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+						<h4 class="modal-title title"></h4>
+					</div>
+					<div class="modal-body">
+						<pre class="message"></pre>
+					</div>
+					<div class="modal-footer">
+						<button type="button" class="btn btn-default ok" data-dismiss="modal">OK</button>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div id="editModal" class="modal fade" tabindex="-2" role="dialog">
+			<div class="modal-dialog modal-lg">
+				<div class="modal-content">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+						<h4 class="modal-title" id="editModalTitle"></h4>
+					</div>
+					<div class="modal-body">
+						<section class="section">
+							<ul class="nav nav-tabs" id="tabScm">
+								<li id="tabRedis"><a href="#">Redis</a></li>
+								<li id="tabPostgres"><a href="#">Postgres</a></li>
+								<li id="tabMysql"><a href="#">Mysql</a></li>
+							</ul>
+							<div class="row">
+								<div class="col-md-6">
+									<div class="card card-block sameheight-item">
+										<div id='editor_holder'></div>
+									</div>
+								</div>
+								<div class="col-md-6">
+									<div class="card card-block">
+										<h3>Preview</h3>
+										<pre id="preview"></pre>
+										<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+										<input id="save" class="btn btn-success" href="#" type="button" value='Save Or Update'></input>
+									</div>
+								</div>
+							</div>
+						</section>
+
+					</div>
+					<div class="modal-footer">
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="container">
+			<div class="header clearfix">
+				<div class="navbar-wrapper">
+					<div class="container" id="navcontainer">
+						<nav class="navbar navbar-inverse navbar-fixed-top " role="navigation">
+							<div class="container">
+                                <div class="navbar-left" style="padding-right:10px"><img src="logo.png" width="40px"></div>
+								<div class="navbar-header">
+									<a class="navbar-brand" href="index.html">Rstore Eyes</a>
+								</div>
+								<div class="navbar-right">
+									<ul class="nav navbar-nav">
+										<li><a href="db.html">DBUnit</a></li>
+										<li><a href="dbgroup.html">DBGroup</a></li>
+										<li><a href="shard.html">Shard</a></li>
+										<li><a href="rule.html">Rule</a></li>
+										<li><a href="cfg.html">Config</a></li>
+									</ul>
+								</div>
+							</div>
+						</nav>
+					</div>
+				</div>
+			</div>

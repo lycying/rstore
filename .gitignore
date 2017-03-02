@@ -1,0 +1,6 @@
+
+.idea/*
+
+plugins/eyes/node_modules*
+
+plugins/eyes/tmp*

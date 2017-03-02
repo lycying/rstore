@@ -1,0 +1,269 @@
+@@include('include/header.html')
+<ul class="breadcrumb">
+    <li><a href="index.html">Home</a> <span class="divider">&gt;</span></li>
+    <li class="active">Shard List</li>
+</ul>
+<div id="shardToolbar">
+    <button type="button" class="btn btn-primary btn-xs addNewBtn">
+        <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>add new shard</button>
+</div>
+<table id="shardTable"
+       data-striped="false"
+       data-toggle="table"
+       data-show-toggle="true"
+       data-toolbar="#shardToolbar"
+       data-show-columns="true"
+       data-search="true"
+       data-side-pagination="client"
+       data-pagination="true"
+       data-show-refresh="true"
+       data-cache="false"
+       data-sort-name="Name"
+       data-sort-order="asc"
+       data-url="../../api/shard/all">
+    <thead>
+        <tr>
+            <th data-field="Name" data-sortable="true">Name(Unique)</th>
+            <th data-field="ShardType">ShardType</th>
+            <th data-field="ShardMap" data-formatter="">ShardMap</th>
+            <th data-field="Optr" data-formatter="optr" data-events="operateEvents">Operate</th>
+        </tr>
+    </thead>
+</table>
+
+<script>
+var scm = {
+    "type": "object",
+    "title": "Shard Defined",
+    "properties": {
+        "ShardType":{
+            "type":"string",
+            "ShardType":"string",
+            "required":true,
+            "enum": ["hash","roundrobin","range"],
+            "default":"hash"
+        },
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "minLength": 5,
+            "default": "round-sharding-my-postgres-id"
+        },
+        "ShardMap":{
+            "type": "array",
+            "uniqueItems": true,
+            "title":"Shard Map",
+            "items":{
+                "title":"Shard Item",
+                "oneOf": [
+                {
+                    "title":"dbgroup",
+                    "properties": {
+                        "RefName":{
+                            "type": "string",
+                            "title": "Reference Name",
+                            "format": "select",
+                            "required":true,
+                            "enum": []
+                        },
+                        "ShardStr":{
+                            "type": "string",
+                            "title": "ShardStr",
+                        },
+                        "RefType":{
+                            "type": "string",
+                            "title": "Reference Type",
+                            "format": "select",
+                            "required":true,
+                            "enum": ["dbgroup"],
+                            "minLength": 7,
+                        },
+
+                    },
+                },
+                {
+                    "title":"shard",
+                    "properties": {
+                        "RefName":{
+                            "type": "string",
+                            "title": "Reference Name",
+                            "format": "select",
+                            "required":true,
+                            "enum": []
+                        },
+                        "ShardStr":{
+                            "type": "string",
+                            "title": "ShardStr",
+                        },
+                        "RefType":{
+                            "type": "string",
+                            "title": "Reference Type)",
+                            "format": "select",
+                            "required":true,
+                            "enum": ["shard"],
+                            "minLength": 5,
+                        },
+
+                    },
+                },
+
+                ]
+            },
+        }
+    },
+};
+var table = $("#shardTable");
+var editor ;
+
+JSONEditor.defaults.options.theme = 'bootstrap3';
+JSONEditor.defaults.options.iconlib = "bootstrap3";
+JSONEditor.defaults.options.disable_properties= 'true';
+JSONEditor.defaults.options.no_additional_properties = 'true';
+JSONEditor.defaults.options.disable_array_reorder= 'true';
+
+
+$("#save").click(function(){
+    var errors = editor.validate();
+    if(errors.length) {
+        return;
+    }
+    $("#save").prop('disabled', true);
+    $.ajax({
+        contentType: 'application/json',
+        data: JSON.stringify(editor.getValue()),
+        dataType: 'json',
+        success: function(data){
+            $('#editModal').modal('hide');
+            $("#save").prop('disabled', false);
+            if(data.result=="OK"){
+                table.bootstrapTable('refresh');
+            }else{
+                Common.info({
+                    title: "Error",
+                    message: "<b>"+data.result + "</b><br/>"+ data.msg,
+                    operate: function (reselt) {}
+                });
+            }
+        },
+        error: function(jqXHR, exception){
+            alert(exception);
+            $("#save").prop('disabled', false);
+        },
+        processData: false,
+        type: 'POST',
+        url: '../../api/shard/save'
+    });
+});
+var loadShard = function(){
+    a = new Array();
+    $.ajax({
+        contentType: 'application/json',
+        type: 'GET',
+        async:false,
+        success:function(data){
+            $(data).each(function(i,v){
+                a.push(v.Name);
+            });
+        },
+        url:"../../api/shard/all"
+    });
+
+    b = new Array();
+    $.ajax({
+        contentType: 'application/json',
+        type: 'GET',
+        async:false,
+        success:function(data){
+            $(data).each(function(i,v){
+                b.push(v.Name);
+            });
+        },
+        url:"../../api/dbgroup/all"
+    });
+    scm.properties.ShardMap.items.oneOf[0].properties.RefName.enum = b;
+    scm.properties.ShardMap.items.oneOf[1].properties.RefName.enum = a;
+
+};
+var optr = function(value,row,index){
+    return "<input class='btn btn-info btn-xs edit' type='button' value='edit'></input> &nbsp;"+
+        "<input class='btn btn-danger btn-xs delete' type='button' value='delete'></input>";
+};
+window.operateEvents = {
+    'click .edit': function (e, value, row, index) {
+        loadShard();
+        $("#editor_holder").html("");
+        editor = new JSONEditor(document.getElementById("editor_holder"), {
+            schema: scm
+        });
+        editor.setValue(row);
+        editor.getEditor('root.Name').disable();
+        editor.on("change", function () {
+            $("#preview").html(syntaxHighlight(editor.getValue()));
+        });
+        var errors = editor.validate();
+        if (errors.length) {
+            alert(JSON.stringify(errors));
+        }
+        $('#editModalTitle').html('Edit - ' + row.Name);
+        $('#editModal').modal('show');
+    },
+    'click .delete': function (e, value, row, index) {
+        Common.confirm({
+            title: "Really?",
+            message: "do you want delete <b>" + row.Name + "</b>?",
+            operate: function (reselt) {
+                if (reselt) {
+                    var url = "../../api/shard/delete/" + row.Name;
+                    $.ajax({
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function(data){
+                            if(data.result=="OK"){
+                                table.bootstrapTable('remove', {
+                                    field: 'Name',
+                                    values: [row.Name]
+                                });
+                            }else{
+                                Common.info({
+                                    title: "Error",
+                                    message: "<b>"+data.result + "</b><br/>"+ data.msg,
+                                    operate: function (reselt) {}
+                                });
+                            }
+                        },
+                        error: function(jqXHR, exception){
+                            Common.info({
+                                        title: "Error",
+                                        message: "<b>" + exception + "</b><br/>" + JSON.stringify(jqXHR,null, 2),
+                                        operate: function (reselt) {}
+                                    });
+                            },
+                        processData: false,
+                        type: 'DELETE',
+                        url : url
+                    });
+                } else {
+                    //nothing
+                }
+            }
+        });
+    }
+};
+$(".addNewBtn").click(function(){
+    loadShard();
+    $("#editor_holder").html("");
+    editor = new JSONEditor(document.getElementById("editor_holder"), {
+        schema: scm
+    });
+    editor.on("change", function () {
+        $("#preview").html(syntaxHighlight(editor.getValue()));
+    });
+
+    $('#editModalTitle').html('Add New DB Unit');
+    $('#editModal').modal('show');
+});
+
+$('#tabScm').hide();
+table.bootstrapTable()
+</script>
+@@include('include/footer.html')

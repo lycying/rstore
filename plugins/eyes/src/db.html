@@ -1,0 +1,486 @@
+@@include('include/header.html')
+<ul class="breadcrumb">
+    <li><a href="index.html">Home</a> <span class="divider">&gt;</span></li>
+    <li class="active">DB Unit List</li>
+</ul>
+
+<ul class="nav nav-tabs">
+    <li id="tabAllRedis"><a href="#">Redis</a></li>
+    <li id="tabAllPostgres"><a href="#">Postgres</a></li>
+    <li id="tabAllMysql"><a href="#">Mysql</a></li>
+</ul>
+
+<div id="postgresTableOuter">
+    <div id="postgresToolbar">
+        <button type="button" class="btn btn-primary btn-xs addNewBtn">
+            <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>add new db unit</button>
+    </div>
+    <table id="postgresTable"
+           data-striped="true"
+           data-toggle="table"
+           data-show-toggle="true"
+           data-toolbar="#postgresToolbar"
+           data-show-columns="true"
+           data-search="true"
+           data-side-pagination="client"
+           data-pagination="true"
+           data-show-refresh="true"
+           data-cache="false"
+           data-sort-name="Name"
+           data-sort-order="asc"
+           data-url="../../api/db/all/pg">
+        <thead>
+            <tr>
+                <th data-field="Type">Type</th>
+                <th data-field="Name" data-sortable="true">Name(Unique)</th>
+                <th data-field="MaxIdle" data-sortable="true">Max Idle</th>
+                <th data-field="MaxOpen" data-sortable="true">Max Open</th>
+                <th data-field="MaxLifetime" data-sortable="true">MaxLifetime</th>
+                <th data-field="State" data-formatter="state">E/S</th>
+                <th data-field="Mark">Mark</th>
+                <th data-field="Optr" data-formatter="optr" data-events="operateEvents">Operate</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+<div id="mysqlTableOuter">
+    <div id="mysqlToolbar">
+        <button type="button" class="btn btn-primary btn-xs addNewBtn">
+            <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>add new db unit</button>
+    </div>
+    <table id="mySqlTable"
+           data-striped="true"
+           data-toggle="table"
+           data-show-toggle="true"
+           data-toolbar="#mysqlToolbar"
+           data-show-columns="true"
+           data-search="true"
+           data-side-pagination="client"
+           data-pagination="true"
+           data-show-refresh="true"
+           data-cache="false"
+           data-sort-name="Name"
+           data-sort-order="asc"
+           data-url="../../api/db/all/mysql">
+        <thead>
+            <tr>
+                <th data-field="Type">Type</th>
+                <th data-field="Name" data-sortable="true">Name(Unique)</th>
+                <th data-field="MaxIdle" data-sortable="true">Max Idle</th>
+                <th data-field="MaxOpen" data-sortable="true">Max Open</th>
+                <th data-field="MaxLifetime" data-sortable="true">MaxLifetime</th>
+                <th data-field="State" data-sortable="true" data-formatter="state">E/S</th>
+                <th data-field="Mark">Mark</th>
+                <th data-field="Optr" data-formatter="optr" data-events="operateEvents">Operate</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+<div id="redisTableOuter">
+    <div id="redisToolbar">
+        <button type="button" class="btn btn-primary btn-xs addNewBtn">
+            <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>add new db unit</button>
+    </div>
+    <table id="redisTable"
+           data-striped="true"
+           data-toggle="table"
+           data-show-toggle="true"
+           data-toolbar="#redisToolbar"
+           data-show-columns="true"
+           data-search="true"
+           data-side-pagination="client"
+           data-pagination="true"
+           data-show-refresh="true"
+           data-cache="false"
+           data-sort-name="Name"
+           data-sort-order="asc"
+           data-url="../../api/db/all/redis">
+        <thead>
+            <tr>
+                <th data-field="Type">Type</th>
+                <th data-field="Name" data-sortable="true">Name(Unique)</th>
+                <th data-field="Server" data-sortable="true">Server(hostname)</th>
+                <th data-field="Port" data-sortable="true">Port</th>
+                <th data-field="State" data-sortable="true" data-formatter="state">E/S</th>
+                <th data-field="Mark">Mark</th>
+                <th data-field="Optr" data-formatter="optr" data-events="operateEvents">Operate</th>
+            </tr>
+        </thead>
+    </table>
+</div>
+
+<style>
+.string { color: green; }
+.number { color: darkorange; }
+.boolean { color: blue; }
+.null { color: magenta; }
+.key { color: red; }
+</style>
+<script>
+var redisScm = {
+    "type": "object",
+    "title": "Redis",
+    "properties": {
+        "Type":{
+            "type":"string",
+            "enum": ["redis"],
+            "required":true
+        },
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "minLength": 5,
+            "default": "redisN"
+        },
+        "Enable":{
+            "type": "boolean",
+            "title": "If inused",
+            "format": "checkbox"
+        },
+        "Server": {
+            "type": "string",
+            "title": "Server",
+            "minLength": 2,
+            "default": "localhost"
+        },
+        "Port": {
+            "type": "integer",
+            "title": "Port",
+            "default": 6379,
+        },
+        "Mark": {
+            "type": "string",
+            "title": "Mark",
+            "format": "textarea",
+            "default": "",
+        },
+    },
+};
+var postgresScm = {
+    "type": "object",
+    "title": "Postgres",
+    "properties": {
+        "Type":{
+            "type":"string",
+            "enum": ["postgres"],
+            "required":true
+        },
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "minLength": 5,
+            "default": "postgresN"
+        },
+        "Enable":{
+            "type": "boolean",
+            "title": "If inused",
+            "format": "checkbox"
+        },
+        "Url": {
+            "type": "string",
+            "title": "URL",
+            "minLength": 12,
+            "default": "postgres://postgres:postgres@localhost/postgres?sslmode=disable"
+        },
+        "MaxIdle": {
+            "type": "integer",
+            "title": "MaxIdle",
+            "default": 10,
+        },
+        "MaxOpen": {
+            "type": "integer",
+            "title": "MaxIdle",
+            "default": 10,
+        },
+        "MaxLifetime": {
+            "type": "integer",
+            "title": "MaxLifetime (Second)",
+            "default": 60,
+        },
+        "Mark": {
+            "type": "string",
+            "title": "Mark",
+            "format": "textarea",
+            "default": "",
+        },
+    },
+};
+var mysqlScm = {
+    "type": "object",
+    "title": "Mysql",
+    "properties": {
+        "Type":{
+            "type":"string",
+            "enum": ["mysql"],
+            "required":true
+        },
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "minLength": 5,
+            "default": "mysqlN"
+        },
+        "Enable":{
+            "type": "boolean",
+            "title": "If inused",
+            "format": "checkbox"
+        },
+        "Url": {
+            "type": "string",
+            "title": "URL",
+            "minLength": 12,
+            "default": "user:password@tcp(localhost:5555)/dbname?tls=skip-verify&autocommit=true"
+        },
+        "MaxIdle": {
+            "type": "integer",
+            "title": "MaxIdle",
+            "default": 10,
+        },
+        "MaxOpen": {
+            "type": "integer",
+            "title": "MaxIdle",
+            "default": 10,
+        },
+        "MaxLifetime": {
+            "type": "integer",
+            "title": "MaxLifetime (Second)",
+            "default": 60,
+        },
+        "Mark": {
+            "type": "string",
+            "title": "Mark",
+            "format": "textarea",
+            "default": "",
+        },
+    },
+};
+
+var table;
+var editor ;
+
+JSONEditor.defaults.options.theme = 'bootstrap3';
+JSONEditor.defaults.options.iconlib = "bootstrap3";
+JSONEditor.defaults.options.disable_properties= 'true';
+JSONEditor.defaults.options.no_additional_properties = 'true';
+JSONEditor.defaults.options.disable_array_reorder= 'true';
+
+$("#tabRedis").click(function(){
+    $("#tabMysql").removeClass("active");
+    $("#tabPostgres").removeClass("active");
+    $("#tabRedis").addClass("active");
+
+    $("#editor_holder").html("");
+    editor = new JSONEditor(document.getElementById("editor_holder"), {
+        schema: redisScm
+    });
+    //Listen for changes
+    editor.on("change", function () {
+        $("#preview").html(syntaxHighlight(editor.getValue()));
+    });
+});
+
+$("#tabPostgres").click(function(){
+    $("#tabMysql").removeClass("active");
+    $("#tabRedis").removeClass("active");
+    $("#tabPostgres").addClass("active");
+
+    $("#editor_holder").html("");
+
+    editor = new JSONEditor(document.getElementById("editor_holder"), {
+        schema: postgresScm 
+    });
+    //Listen for changes
+    editor.on("change", function () {
+        $("#preview").html(syntaxHighlight(editor.getValue()));
+    });
+});
+$("#tabMysql").click(function(){
+    $("#tabPostgres").removeClass("active");
+    $("#tabRedis").removeClass("active");
+    $("#tabMysql").addClass("active");
+
+    $("#editor_holder").html("");
+    editor = new JSONEditor(document.getElementById("editor_holder"), {
+        schema: mysqlScm 
+    });
+    //Listen for changes
+    editor.on("change", function () {
+        $("#preview").html(syntaxHighlight(editor.getValue()));
+    });
+});
+$("#save").click(function(){
+    var errors = editor.validate();
+    if(errors.length) {
+        return;
+    }
+    $("#save").prop('disabled', true);
+    $.ajax({
+        contentType: 'application/json',
+        data: JSON.stringify(editor.getValue()),
+        dataType: 'json',
+        success: function(data){
+            $('#editModal').modal('hide');
+            $("#save").prop('disabled', false);
+            if(data.result=="OK"){
+                table.bootstrapTable('refresh');
+            }else{
+                Common.info({
+                    title: "Error",
+                    message: "<b>"+data.result + "</b><br/>"+ data.msg,
+                    operate: function (reselt) {}
+                });
+            }
+        },
+        error: function(jqXHR, exception){
+            alert(exception);
+            $("#save").prop('disabled', false);
+        },
+        processData: false,
+        type: 'POST',
+        url: '../../api/db/save'
+    });
+});
+var optr = function(value,row,index){
+    return "<input class='btn btn-info btn-xs edit' type='button' value='edit'></input> &nbsp;"+
+        "<input class='btn btn-danger btn-xs delete' type='button' value='delete'></input>";
+};
+var state = function(value,row,index){
+    str = "";
+    if(row.Enable){
+        str = str + '<span class="label label-success">yes</span>';
+    }else{
+        str = str + '<span class="label label-danger">no</span>';
+    }
+    str += "&nbsp;";
+    if(row.State==0){
+        str = str + '<span class="label label-success">ok</span>';
+    }else{
+        str = str + '<span class="label label-danger">fail</span>';
+    }
+    return str;
+};
+
+window.operateEvents = {
+    'click .edit': function (e, value, row, index) {
+        var scm = postgresScm;
+        if(row.Type == 'postgres'){
+            $("#tabPostgres").trigger("click");
+        }else if(row.Type == 'mysql'){
+            $("#tabMysql").trigger("click");
+        }else if(row.Type == 'redis'){
+            $("#tabRedis").trigger("click");
+        }
+        editor.setValue(row);
+        editor.getEditor('root.Name').disable();
+        editor.on("change", function () {
+            $("#preview").html(syntaxHighlight(editor.getValue()));
+        });
+        var errors = editor.validate();
+        if (errors.length) {
+            alert(JSON.stringify(errors));
+        }
+        $('#editModalTitle').html('Edit - ' + row.Name);
+        $('#editModal').modal('show');
+    },
+    'click .delete': function (e, value, row, index) {
+        Common.confirm({
+            title: "Really?",
+            message: "do you want delete <b>" + row.Name + "</b>?",
+            operate: function (reselt) {
+                if (reselt) {
+                    var t = "";
+                    if(row.Type == "postgres"){
+                        t = "pg";
+                    }else if(row.Type == "mysql"){
+                        t = "mysql";
+                    }else if(row.Type == "redis"){
+                        t = "redis";
+                    }
+                    var url = "../../api/db/delete/" + t + "/" + row.Name;
+                    $.ajax({
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function(data){
+                            if(data.result=="OK"){
+                                table.bootstrapTable('remove', {
+                                    field: 'Name',
+                                    values: [row.Name]
+                                });
+                            }else{
+                                Common.info({
+                                    title: "Error",
+                                    message: "<b>"+data.result + "</b><br/>"+ data.msg,
+                                    operate: function (reselt) {}
+                                });
+                            }
+                        },
+                        error: function(jqXHR, exception){
+                            Common.info({
+                                title: "Error",
+                                message: "<b>" + exception + "</b><br/>" + JSON.stringify(jqXHR,null, 2),
+                                operate: function (reselt) {}
+                            });
+                        },
+                        processData: false,
+                        type: 'DELETE',
+                        url : url
+                    });
+
+                } else {
+                    //nothing
+                }
+            }
+        });
+    }
+};
+$(".addNewBtn").click(function(){
+    $('#editModalTitle').html('Add New DB Unit');
+    $('#editModal').modal('show');
+    $('#tabScm').show();
+    editor.getEditor('root.Name').enable();
+});
+
+$("#tabAllPostgres").click(function(){
+    $("#tabAllMysql").removeClass("active");
+    $("#tabAllRedis").removeClass("active");
+    $("#tabAllPostgres").addClass("active");
+
+    $("#mysqlTableOuter").hide();
+    $("#redisTableOuter").hide();
+    $("#postgresTableOuter").show();
+
+    table = $("#postgresTable");
+    table.bootstrapTable("destroy").bootstrapTable();
+    $("#tabPostgres").trigger("click");
+});
+$("#tabAllMysql").click(function(){
+    $("#tabAllPostgres").removeClass("active");
+    $("#tabAllRedis").removeClass("active");
+    $("#tabAllMysql").addClass("active");
+
+    $("#postgresTableOuter").hide();
+    $("#redisTableOuter").hide();
+    $("#mysqlTableOuter").show();
+
+    table = $("#mySqlTable");
+    table.bootstrapTable("destroy").bootstrapTable();
+    $("#tabMysql").trigger("click");
+});
+$("#tabAllRedis").click(function(){
+    $("#tabAllMysql").removeClass("active");
+    $("#tabAllPostgres").removeClass("active");
+    $("#tabAllRedis").addClass("active");
+
+    $("#mysqlTableOuter").hide();
+    $("#postgresTableOuter").hide();
+    $("#redisTableOuter").show();
+
+    table = $("#redisTable");
+    table.bootstrapTable("destroy").bootstrapTable();
+    $("#tabRedis").trigger("click");
+});
+
+$('#tabScm').hide();
+$("#tabAllPostgres").trigger("click");
+</script>
+@@include('include/footer.html')

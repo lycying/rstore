@@ -1,0 +1,226 @@
+@@include('include/header.html')
+<ul class="breadcrumb">
+    <li><a href="index.html">Home</a> <span class="divider">&gt;</span></li>
+    <li class="active">Rule List</li>
+</ul>
+<div id="shardToolbar">
+    <button type="button" class="btn btn-primary btn-xs addNewBtn">
+        <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>add new rule</button>
+</div>
+<table id="scmTable"
+       data-striped="false"
+       data-toggle="table"
+       data-show-toggle="true"
+       data-toolbar="#shardToolbar"
+       data-show-columns="true"
+       data-search="true"
+       data-side-pagination="client"
+       data-pagination="true"
+       data-show-refresh="true"
+       data-cache="false"
+       data-sort-name="Order"
+       data-sort-order="asc"
+       data-url="../../api/rule/all">
+    <thead>
+        <tr>
+            <th data-field="Name">Name(Unique)</th>
+            <th data-field="Order" data-sortable="true">Order</th>
+            <th data-field="Regexp">Regexp</th>
+            <th data-field="HashSlot">HashSlot</th>
+            <th data-field="ShardName">ShardName</th>
+            <th data-field="Example">Example</th>
+            <th data-field="Mark">Mark</th>
+            <th data-field="Optr" data-formatter="optr" data-events="operateEvents">Operate</th>
+        </tr>
+    </thead>
+</table>
+
+<script>
+var scm = {
+    "type": "object",
+    "title": "Rule Defined",
+    "properties": {
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "minLength": 5,
+            "default": "the.app.firstname"
+        },
+        "Order":{
+            "type":"integer",
+            "title": "Order",
+            "default": 0
+        },
+        "Regexp":{
+            "type":"string",
+            "title": "Regexp",
+            "minLength": 5,
+            "default": "app:(\\d+):firstname"
+        },
+        "HashSlot":{
+            "type":"integer",
+            "title": "HashSlot",
+            "default": 0
+        },
+        "ShardName":{
+            "type":"string",
+            "title": "ShardName",
+            "format": "select",
+            "required":true,
+            "enum": []
+        },
+        "Example":{
+            "type":"string",
+            "title": "Example(split with '~~')",
+            "default": ""
+        },
+        "Mark":{
+            "type":"string",
+            "title": "Mark",
+            "format": "textarea",
+            "default": ""
+        },
+    },
+};
+var table = $("#scmTable");
+var editor ;
+
+JSONEditor.defaults.options.theme = 'bootstrap3';
+JSONEditor.defaults.options.iconlib = "bootstrap3";
+JSONEditor.defaults.options.disable_properties= 'true';
+JSONEditor.defaults.options.no_additional_properties = 'true';
+JSONEditor.defaults.options.disable_array_reorder= 'true';
+
+
+$("#save").click(function(){
+    var errors = editor.validate();
+    if(errors.length) {
+        return;
+    }
+    $("#save").prop('disabled', true);
+    $.ajax({
+        contentType: 'application/json',
+        data: JSON.stringify(editor.getValue()),
+        dataType: 'json',
+        success: function(data){
+            $('#editModal').modal('hide');
+            $("#save").prop('disabled', false);
+            if(data.result=="OK"){
+                table.bootstrapTable('refresh');
+            }else{
+                Common.info({
+                    title: "Error",
+                    message: "<b>"+data.result + "</b><br/>"+ data.msg,
+                    operate: function (reselt) {}
+                });
+            }
+        },
+        error: function(jqXHR, exception){
+            alert(exception);
+            $("#save").prop('disabled', false);
+        },
+        processData: false,
+        type: 'POST',
+        url: '../../api/rule/save'
+    });
+});
+var preLoadData = function(){
+    a = new Array();
+    $.ajax({
+        contentType: 'application/json',
+        type: 'GET',
+        async:false,
+        success:function(data){
+            $(data).each(function(i,v){
+                a.push(v.Name);
+            });
+        },
+        url:"../../api/shard/all"
+    });
+    scm.properties.ShardName.enum = a;
+};
+
+var optr = function(value,row,index){
+    return "<input class='btn btn-info btn-xs edit' type='button' value='edit'></input> &nbsp;"+
+        "<input class='btn btn-danger btn-xs delete' type='button' value='delete'></input>";
+};
+
+window.operateEvents = {
+    'click .edit': function (e, value, row, index) {
+        preLoadData();
+        $("#editor_holder").html("");
+        editor = new JSONEditor(document.getElementById("editor_holder"), {
+            schema: scm
+        });
+        editor.getEditor('root.Name').disable();
+        editor.setValue(row);
+        editor.on("change", function () {
+            $("#preview").html(syntaxHighlight(editor.getValue()));
+        });
+        var errors = editor.validate();
+        if (errors.length) {
+            alert(JSON.stringify(errors));
+        }
+        $('#editModalTitle').html('Edit - ' + row.Name);
+        $('#editModal').modal('show');
+    },
+    'click .delete': function (e, value, row, index) {
+        Common.confirm({
+            title: "Really?",
+            message: "do you want delete <b>" + row.Name + "</b>?",
+            operate: function (reselt) {
+                if (reselt) {
+                    var url = "../../api/rule/delete/" + row.Name;
+                    $.ajax({
+                        contentType: 'application/json',
+                        dataType: 'json',
+                        success: function(data){
+                            if(data.result=="OK"){
+                                table.bootstrapTable('remove', {
+                                    field: 'Name',
+                                    values: [row.Name]
+                                });
+                            }else{
+                                Common.info({
+                                    title: "Error",
+                                    message: "<b>"+data.result + "</b><br/>"+ data.msg,
+                                    operate: function (reselt) {}
+                                });
+                            }
+                        },
+                        error: function(jqXHR, exception){
+                            Common.info({
+                                title: "Error",
+                                message: "<b>" + exception + "</b><br/>" + JSON.stringify(jqXHR,null, 2),
+                                operate: function (reselt) {}
+                            });
+                        },
+                        processData: false,
+                        type: 'DELETE',
+                        url : url
+                    });
+                } else {
+                    //nothing
+                }
+            }
+        });
+    }
+};
+$(".addNewBtn").click(function(){
+    preLoadData();
+    $("#editor_holder").html("");
+    editor = new JSONEditor(document.getElementById("editor_holder"), {
+        schema: scm
+    });
+    editor.on("change", function () {
+        $("#preview").html(syntaxHighlight(editor.getValue()));
+    });
+
+    $('#editModalTitle').html('Add New DB Unit');
+    $('#editModal').modal('show');
+});
+
+$('#tabScm').hide();
+table.bootstrapTable()
+</script>
+@@include('include/footer.html')

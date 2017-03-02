@@ -1,0 +1,73 @@
+@@include('include/header.html')
+<ul class="breadcrumb">
+    <li class="active">Home</li>
+</ul>
+<style>
+    .bigicon {
+        font-size:50px;
+        color:white;
+    }
+    .panel{
+        border-radius:0;        
+    }
+    .stats-item{        
+        padding:10px;     
+        min-height:77px;   
+    }
+    .header-item{
+        font-size:17px;
+        color:white;
+    }
+    .data-item {
+        font-size: 19px;
+        color: white;
+    }
+</style>
+
+    <div class="row">
+        <div class="col-sm-6 col-md-3 col-lg-3">            
+                <div class="panel text-center">
+                    <div class="col-md-6 stats-item" style="background-color: #00AABF">
+                        <i style="background-color: #00AABF" class="glyphicon glyphicon-glass bigicon"></i>
+                    </div>
+                    <div style="background-color: #00BCD4" class="col-md-6 stats-item">
+                        <div class="header-item">ActiveDB</div>
+                        <div class="data-item">175,773</div>
+                    </div>
+                </div>            
+        </div>
+        <div class="col-sm-6 col-md-3 col-lg-3">
+            <div class="panel text-center">
+                <div class="col-md-6 stats-item" style="background-color: #7DB043">
+                    <i style="background-color: #7DB043" class="glyphicon glyphicon-th bigicon"></i>
+                </div>
+                <div style="background-color: #8BC34A" class="col-md-6 stats-item">
+                    <div class="header-item">Connections</div>
+                    <div class="data-item">975,112</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-3 col-lg-3">
+            <div class="panel text-center">
+                <div class="col-md-6 stats-item" style="background-color: #E68900">
+                    <i style="background-color: #E68900" class="glyphicon  glyphicon-road bigicon"></i>
+                </div>
+                <div style="background-color: #FF9800" class="col-md-6 stats-item">
+                    <div class="header-item">Gor</div>
+                    <div class="data-item">124,554</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-md-3 col-lg-3">
+            <div class="panel text-center">
+                <div class="col-md-6 stats-item" style="background-color: #57717D">
+                    <i style="background-color: #57717D" class="glyphicon  glyphicon-bell bigicon"></i>
+                </div>
+                <div style="background-color: #607D8B" class="col-md-6 stats-item">
+                    <div class="header-item">T/Q</div>
+                    <div class="data-item">11,745</div>
+                </div>
+            </div>
+        </div>
+    </div>
+@@include('include/footer.html')

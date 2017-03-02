@@ -1,0 +1,93 @@
+@@include('include/header.html')
+<ul class="breadcrumb">
+    <li><a href="index.html">Home</a> <span class="divider">&gt;</span></li>
+    <li class="active">Public Config</li>
+</ul>
+<section class="section">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card card-block sameheight-item">
+                <div id='public_editor_holder'></div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card card-block">
+                <h3>Preview</h3>
+                <pre id="public_preview"></pre>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                <input id="public_save" class="btn btn-success" href="#" type="button" value='Save Or Update'></input>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+var scm = {
+    "type": "object",
+    "title": "Public Config",
+    "properties": {
+        "SaverType":{
+            "type":"string",
+            "title": "Config Center Type",
+            "enum": ["etcd","zookeeper"],
+            "required":true,
+            "default": "etcd"
+        },
+        "ConnStr":{
+            "type":"string",
+            "title": "ConnStr",
+            "format": "textarea",
+            "default": ""
+        },
+    },
+};
+JSONEditor.defaults.options.theme = 'bootstrap3';
+JSONEditor.defaults.options.iconlib = "bootstrap3";
+JSONEditor.defaults.options.disable_properties= 'true';
+JSONEditor.defaults.options.no_additional_properties = 'true';
+JSONEditor.defaults.options.disable_array_reorder= 'true';
+
+
+$("#public_editor_holder").html("");
+var editor = new JSONEditor(document.getElementById("public_editor_holder"), {
+    schema: scm
+});
+editor.on("change", function () {
+    $("#public_preview").html(syntaxHighlight(editor.getValue()));
+});
+
+
+$("#save").click(function(){
+    var errors = editor.validate();
+    if(errors.length) {
+        return;
+    }
+    $("#save").prop('disabled', true);
+    $.ajax({
+        contentType: 'application/json',
+        data: JSON.stringify(editor.getValue()),
+        dataType: 'json',
+        success: function(data){
+            $('#editModal').modal('hide');
+            $("#save").prop('disabled', false);
+            if(data.result=="OK"){
+                table.bootstrapTable('refresh');
+            }else{
+                Common.info({
+                    title: "Error",
+                    message: "<b>"+data.result + "</b><br/>"+ data.msg,
+                    operate: function (reselt) {}
+                });
+            }
+        },
+        error: function(jqXHR, exception){
+            alert(exception);
+            $("#save").prop('disabled', false);
+        },
+        processData: false,
+        type: 'POST',
+        url: '../../api/rule/save'
+    });
+});
+</script>
+@@include('include/footer.html')
