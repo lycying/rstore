@@ -1,5 +1,6 @@
 package cfg
 
+
 import (
 	"encoding/json"
 	"github.com/coreos/etcd/client"
@@ -166,15 +167,6 @@ func (c *EtcdClient) GetAllRedis() ([]*CfgDBRedis, error) {
 		index++
 	}
 	return ret, nil
-}
-func (c *EtcdClient) GetAllPostgresByGroup(cfg *CfgDBGroup) ([]*CfgDBPostgres, error) {
-	return nil, nil
-}
-func (c *EtcdClient) GetAllMysqlByGroup(cfg *CfgDBGroup) ([]*CfgDBMysql, error) {
-	return nil, nil
-}
-func (c *EtcdClient) GetAllRedisByGroup(cfg *CfgDBGroup) ([]*CfgDBRedis, error) {
-	return nil, nil
 }
 func (c *EtcdClient) SaveOrUpdateDBGroup(cfg *CfgDBGroup) error {
 	b, err := json.Marshal(cfg)

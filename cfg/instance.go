@@ -2,10 +2,8 @@ package cfg
 
 import (
 	"github.com/lycying/rstore/redisx"
-	"github.com/lycying/rstore/redisx/postgres"
 	"math/rand"
 	"regexp"
-	"time"
 )
 
 type DB_Instance struct {
@@ -48,23 +46,13 @@ func NewDBInstance(cfg DBer) *DB_Instance {
 	db.Cfg = cfg
 	return db
 }
-
-func (shard *Shard_Instance) GetDBGroupInstance(hashKey string) *DBGroup_Instance {
-	return nil
+func NewDBGroupInstance(cfg *CfgDBGroup) *DBGroup_Instance{
+	db := &DBGroup_Instance{}
+	db.Cfg = cfg
+	return db
 }
 
-func (db *DB_Instance) Born() error {
-	t := db.Cfg.(*CfgBase).Type
-	if t == "postgres" {
-		cfg := db.Cfg.(*CfgDBPostgres)
-		pg, err := postgres.NewPostgres(cfg.Url)
-		if err != nil {
-			return err
-		}
-		pg.GetReal().SetMaxIdleConns(cfg.MaxIdle)
-		pg.GetReal().SetMaxOpenConns(cfg.MaxOpen)
-		pg.GetReal().SetConnMaxLifetime(time.Duration(cfg.MaxLifetime) * time.Second)
-	}
+func (shard *Shard_Instance) GetDBGroupInstance(hashKey string) *DBGroup_Instance {
 	return nil
 }
 
@@ -103,4 +91,13 @@ func (inst *Instance) GetReadDB(cmd string, key string) redisx.Redis {
 		return db.DB.Backend
 	}
 	return nil
+}
+
+func NewInstance() *Instance {
+	ise := &Instance{}
+	ise.DBMap = make(map[string]map[string]*DB_Instance, 0)
+	ise.DBGroupMap = make(map[string]map[string]*DBGroup_Instance, 0)
+	ise.ShardMap = make(map[string]*Shard_Instance, 0)
+	ise.RuleMap = make(map[string]*Rule_Instance, 0)
+	return ise
 }
