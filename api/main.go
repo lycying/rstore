@@ -7,7 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"runtime/debug"
-	"time"
+	_ "net/http/pprof"
 )
 
 var ResponseOK = []byte("{\"result\":\"OK\"}")
@@ -43,14 +43,14 @@ func Start() {
 	r.HandleFunc("/api/rule/delete/{name}", api.rule_delete).Methods("DELETE")
 
 	http.Handle("/", r)
-	srv := &http.Server{
-		Handler:      r,
-		Addr:         ":8888",
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
-	}
-
-	srv.ListenAndServe()
+	//srv := &http.Server{
+	//	Handler:      r,
+	//	Addr:         ":8888",
+	//	WriteTimeout: 15 * time.Second,
+	//	ReadTimeout:  15 * time.Second,
+	//}
+	//srv.ListenAndServe()
+	http.ListenAndServe(":8888", nil)
 }
 
 type Api struct {
