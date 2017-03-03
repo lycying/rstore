@@ -26,9 +26,14 @@ type DBGroup_Instance struct {
 	TotalReadWeight int //change this  when dbs changed
 }
 
+type ShardItem_Instance struct {
+	Cfg 	*ShardItem
+	Holder interface{}
+}
+
 type Shard_Instance struct {
 	Cfg        *CfgShard
-	ShardParts []interface{}
+	ShardParts []*ShardItem_Instance
 }
 
 type Rule_Instance struct {
@@ -44,6 +49,21 @@ type Instance struct {
 	DBGroupMap map[string]*DBGroup_Instance
 	ShardMap   map[string]*Shard_Instance
 	RuleMap    map[string]*Rule_Instance
+}
+
+type Path struct {
+	Rule *Rule_Instance
+	Shard []*Shard_Instance
+	Group *DBGroup_Instance
+	DB *DBExt_Instance
+	HashKey string
+}
+
+func NewPath() *Path{
+	path := &Path{
+		Shard: make([]*Shard_Instance,0),
+	}
+	return path
 }
 
 func NewDBInstance(cfg DBer) *DB_Instance {
@@ -68,58 +88,102 @@ func NewRuleInstance(cfg *CfgRule) *Rule_Instance {
 	return db
 }
 
-func (shard *Shard_Instance) GetDBGroupInstance(hashKey string) *DBGroup_Instance {
+func (shard *ShardItem_Instance) MatchItem(hashKey string) bool{
 	//TODO
-	ise := GetInstance()
-	name := shard.Cfg.ShardMap[0].RefName
-	return ise.DBGroupMap[name]
+	return true
 }
 
-func (inst *Instance) GetReadDB(cmd string, key string) (redisx.Redis, error) {
-	var db *DBExt_Instance
-	for _, v := range inst.RuleMap {
-		sm := v.Regexp.FindSubmatch([]byte(key))
-		if sm != nil {
-			//yes , match
-			cfg := v.Cfg
-			shardName := cfg.ShardName
-			hashKey := string(sm[cfg.HashSlot])
-			dbShardInstance := inst.ShardMap[shardName]
-			dbGroupInstance := dbShardInstance.GetDBGroupInstance(hashKey)
+func (shard *Shard_Instance) GetDBGroupInstance(hashKey string,path *Path) (*DBGroup_Instance, error) {
+	path.Shard = append(path.Shard,shard)
 
-			var weight int
-			rnd := rand.Intn(dbGroupInstance.TotalReadWeight)
-
-			for _, tmp := range dbGroupInstance.MasterSlaves {
-				if tmp.IsMaster && tmp.ReadWeight == 0 {
-					continue
-				}
-				weight += tmp.ReadWeight
-				if weight >= rnd {
-					db = tmp
-					break
-				}
-			}
-			if db == nil {
-				db = dbGroupInstance.MasterSlaves[rand.Intn(len(dbGroupInstance.MasterSlaves))]
+	for _,v := range shard.ShardParts{
+		if v.MatchItem(hashKey){
+			if v.Cfg.RefType == "shard"{
+				return v.Holder.(*Shard_Instance).GetDBGroupInstance(hashKey,path)
+			}else{
+				return v.Holder.(*DBGroup_Instance),nil
 			}
 			break
 		}
 	}
-	if db != nil {
-		return db.DB.Backend, nil
+	return nil,errors.New("no match dbgroup founded")
+}
+
+
+func (ise *Instance) GetReadDB(cmd string, isReadCmd bool, key string) (*Path, error) {
+	var p *Path = NewPath()
+	var db *DBExt_Instance
+	for _, rule := range ise.RuleMap {
+		sm := rule.Regexp.FindStringSubmatch(key)
+		if sm != nil {
+			p.Rule = rule
+			//yes , match
+			if rule.Cfg.HashSlot >= len(sm) {
+				return nil, errors.New(fmt.Sprintf("HashSlot is %v , but we only has %v submatch ", rule.Cfg.HashSlot, len(sm)))
+			}
+			hashKey := sm[rule.Cfg.HashSlot]
+			p.HashKey = hashKey
+			shardName := rule.Cfg.ShardName
+			if dbShardInstance, ok := ise.ShardMap[shardName]; ok {
+				dbGroupInstance, err := dbShardInstance.GetDBGroupInstance(hashKey,p)
+				if err != nil {
+					return p, err
+				}
+				p.Group = dbGroupInstance
+				if isReadCmd {
+					var weight int
+					rnd := rand.Intn(dbGroupInstance.TotalReadWeight)
+					for _, tmp := range dbGroupInstance.MasterSlaves {
+						if tmp.ReadWeight == 0 {
+							continue
+						}
+						weight += tmp.ReadWeight
+						if weight >= rnd {
+							db = tmp
+							break
+						}
+					}
+					if db == nil {
+						db = dbGroupInstance.MasterSlaves[rand.Intn(len(dbGroupInstance.MasterSlaves))]
+					}
+				}else{
+					masters := make([]*DBExt_Instance,0)
+					for _, tmp := range dbGroupInstance.MasterSlaves {
+						if tmp.IsMaster{
+							masters = append(masters,tmp)
+						}
+					}
+					if len(masters) <= 0 {
+						return p,errors.New(fmt.Sprintf("Error : no master found in dbgroup %v", dbGroupInstance.Cfg.Name))
+					}
+					if dbGroupInstance.Cfg.ReplicateMode == "none"{
+						//TODO should make raft and 2pc
+						db = masters[0]
+					}
+				}
+			}else{
+				return p,errors.New(fmt.Sprintf("not found %v in shardmap",shardName))
+			}
+			//match once then break
+			break
+		}
 	}
-	return nil, errors.New(fmt.Sprintf("no router found for %v => %v", cmd, key))
+	if db != nil {
+		p.DB = db
+		return p, nil
+	}
+	return p, errors.New(fmt.Sprintf("no router found for %v => %v", cmd, key))
 }
 
 func NewInstance(saver Saver, fly Saver) *Instance {
-	ise := &Instance{}
-	ise.DBMap = make(map[string]map[string]*DB_Instance)
-	ise.DBGroupMap = make(map[string]*DBGroup_Instance)
-	ise.ShardMap = make(map[string]*Shard_Instance)
-	ise.RuleMap = make(map[string]*Rule_Instance)
-	ise.saver = saver
-	ise.fly = fly
+	ise := &Instance{
+		DBMap:      make(map[string]map[string]*DB_Instance),
+		DBGroupMap: make(map[string]*DBGroup_Instance),
+		ShardMap:   make(map[string]*Shard_Instance),
+		RuleMap:    make(map[string]*Rule_Instance),
+		saver:      saver,
+		fly:        fly,
+	}
 	return ise
 }
 
@@ -127,7 +191,7 @@ func NewInstance(saver Saver, fly Saver) *Instance {
 func (ise *Instance) Init() {
 	all_pg, err := ise.saver.GetAllPostgres()
 	if err != nil {
-		logger.Err(err,"error")
+		logger.Err(err, "error")
 	} else {
 		for _, v := range all_pg {
 			ise.fly.SaveOrUpdatePostgres(v)
@@ -136,7 +200,7 @@ func (ise *Instance) Init() {
 
 	all_mysql, err := ise.saver.GetAllMysql()
 	if err != nil {
-		logger.Err(err,"error")
+		logger.Err(err, "error")
 	} else {
 		for _, v := range all_mysql {
 			ise.fly.SaveOrUpdateMySql(v)
@@ -145,7 +209,7 @@ func (ise *Instance) Init() {
 
 	all_redis, err := ise.saver.GetAllRedis()
 	if err != nil {
-		logger.Err(err,"error")
+		logger.Err(err, "error")
 	} else {
 		for _, v := range all_redis {
 			ise.fly.SaveOrUpdateRedis(v)
@@ -154,7 +218,7 @@ func (ise *Instance) Init() {
 
 	all_dbgroup, err := ise.saver.GetAllDBGroup()
 	if err != nil {
-		logger.Err(err,"error")
+		logger.Err(err, "error")
 	} else {
 		for _, v := range all_dbgroup {
 			ise.fly.SaveOrUpdateDBGroup(v)
@@ -163,7 +227,7 @@ func (ise *Instance) Init() {
 
 	all_shard, err := ise.saver.GetAllShard()
 	if err != nil {
-		logger.Err(err,"error")
+		logger.Err(err, "error")
 	} else {
 		for _, v := range all_shard {
 			ise.fly.SaveOrUpdateShard(v)
@@ -172,7 +236,7 @@ func (ise *Instance) Init() {
 
 	all_rule, err := ise.saver.GetAllRule()
 	if err != nil {
-		logger.Err(err,"error")
+		logger.Err(err, "error")
 	} else {
 		for _, v := range all_rule {
 			ise.fly.SaveOrUpdateRule(v)

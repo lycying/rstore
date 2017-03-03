@@ -1,6 +1,5 @@
 package cfg
 
-import ()
 import (
 	"errors"
 	"fmt"
@@ -20,14 +19,17 @@ func NewFly() *Fly {
 func (fly *Fly) SaveOrUpdatePostgres(cfg *CfgDBPostgres) error {
 	ise := GetInstance()
 	t := cfg.Type
+	//make new type map if not exist
 	if _, ok := ise.DBMap[t]; !ok {
 		ise.DBMap[t] = make(map[string]*DB_Instance, 0)
 	}
+	//if need destory the orgi connections
 	var needDestory bool = false
 	if db, ok := ise.DBMap[t][cfg.Name]; ok {
 		//check if replace it
 		orgi := db.Cfg.(*CfgDBPostgres)
 
+		//the connection url is changed
 		if orgi.Url != cfg.Url {
 			needDestory = true
 		}
@@ -40,25 +42,24 @@ func (fly *Fly) SaveOrUpdatePostgres(cfg *CfgDBPostgres) error {
 			pg.GetReal().SetMaxOpenConns(cfg.MaxOpen)
 			pg.GetReal().SetMaxIdleConns(cfg.MaxIdle)
 		}
+	} else {
+		//mark it if it needed !
+		orgi := ise.DBMap[t][cfg.Name]
+		db := NewDBInstance(cfg)
+		pg, err := postgres.NewPostgres(cfg.Url)
+		if err != nil {
+			return err
+		}
+		pg.GetReal().SetMaxIdleConns(cfg.MaxIdle)
+		pg.GetReal().SetMaxOpenConns(cfg.MaxOpen)
+		pg.GetReal().SetConnMaxLifetime(time.Duration(cfg.MaxLifetime) * time.Second)
+		db.Backend = pg
+		ise.DBMap[t][cfg.Name] = db
+		if needDestory {
+			orgi.Backend.Close()
+		}
 	}
-	//mark it if it needed !
-	orgi := ise.DBMap[t][cfg.Name]
 
-	db := NewDBInstance(cfg)
-	pg, err := postgres.NewPostgres(cfg.Url)
-	if err != nil {
-		return err
-	}
-	pg.GetReal().SetMaxIdleConns(cfg.MaxIdle)
-	pg.GetReal().SetMaxOpenConns(cfg.MaxOpen)
-	pg.GetReal().SetConnMaxLifetime(time.Duration(cfg.MaxLifetime) * time.Second)
-	db.Backend = pg
-
-	ise.DBMap[t][cfg.Name] = db
-
-	if needDestory {
-		orgi.Backend.Close()
-	}
 	return nil
 }
 
@@ -71,8 +72,8 @@ func (fly *Fly) SaveOrUpdateRedis(cfg *CfgDBRedis) error {
 
 func (fly *Fly) SaveOrUpdateDBGroup(cfg *CfgDBGroup) error {
 	ise := GetInstance()
-	dbgroup := NewDBGroupInstance(cfg)
 	t := cfg.Type
+	dbgroup := NewDBGroupInstance(cfg)
 	//rebuild
 	totalReadWeight := 0
 	for _, item := range cfg.Items {
@@ -84,7 +85,7 @@ func (fly *Fly) SaveOrUpdateDBGroup(cfg *CfgDBGroup) error {
 		if db, ok := ise.DBMap[t][item.Name]; ok {
 			new.DB = db
 		} else {
-			return errors.New(fmt.Sprintf("no db named '%v' found ! can make instance. ", item.Name))
+			return errors.New(fmt.Sprintf("no db(%v) named '%v' found ! can not make instance. ", t, item.Name))
 		}
 		dbgroup.MasterSlaves = append(dbgroup.MasterSlaves, new)
 	}
@@ -92,6 +93,7 @@ func (fly *Fly) SaveOrUpdateDBGroup(cfg *CfgDBGroup) error {
 	ise.DBGroupMap[cfg.Name] = dbgroup
 	return nil
 }
+
 func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
 	ise := GetInstance()
 	shard := NewShardInstance(cfg)
@@ -113,6 +115,7 @@ func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
 	ise.ShardMap[cfg.Name] = shard
 	return nil
 }
+
 func (fly *Fly) SaveOrUpdateRule(cfg *CfgRule) error {
 	ise := GetInstance()
 	rule := NewRuleInstance(cfg)
@@ -129,6 +132,7 @@ func (fly *Fly) SaveOrUpdateRule(cfg *CfgRule) error {
 	ise.RuleMap[cfg.Name] = rule
 	return nil
 }
+
 func (fly *Fly) RemovePostgres(name string) error {
 	ise := GetInstance()
 	t := "postgres"
@@ -137,7 +141,7 @@ func (fly *Fly) RemovePostgres(name string) error {
 		if v.Cfg.Type == t {
 			for _, gv := range v.Cfg.Items {
 				if gv.Name == name {
-					return errors.New(fmt.Sprintf(" %v is used by dbgroup %v", name, v.Cfg.Name))
+					return errors.New(fmt.Sprintf(" %v  (%v) is used by dbgroup %v", name, t, v.Cfg.Name))
 				}
 			}
 		}
@@ -149,12 +153,14 @@ func (fly *Fly) RemovePostgres(name string) error {
 	}
 	return nil
 }
+
 func (fly *Fly) RemoveMysql(name string) error {
 	return nil
 }
 func (fly *Fly) RemoveRedis(name string) error {
 	return nil
 }
+
 func (fly *Fly) RemoveDBGroup(name string) error {
 	ise := GetInstance()
 	for _, v := range ise.ShardMap {
@@ -171,6 +177,7 @@ func (fly *Fly) RemoveDBGroup(name string) error {
 	}
 	return nil
 }
+
 func (fly *Fly) RemoveShard(name string) error {
 	ise := GetInstance()
 	for _, v := range ise.ShardMap {
@@ -192,6 +199,7 @@ func (fly *Fly) RemoveShard(name string) error {
 	}
 	return nil
 }
+
 func (fly *Fly) RemoveRule(name string) error {
 	ise := GetInstance()
 	if _, ok := ise.RuleMap[name]; ok {

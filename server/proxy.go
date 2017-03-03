@@ -14,65 +14,77 @@ import (
 // the the mut framework send it to the client
 type proxyFunc func(*codec.Request) *codec.Response
 
+type methodDef struct {
+	function  proxyFunc
+	isReadCmd bool
+}
+
+func newMethodDef(function proxyFunc, isReadCmd bool) *methodDef {
+	m := &methodDef{}
+	m.function = function
+	m.isReadCmd = isReadCmd
+	return m
+}
+
 // Proxy hold gdt(function global descriptor table)
 type Proxy struct {
-	gdt map[string]proxyFunc
+	gdt map[string]*methodDef
 }
 
 // NewProxy make new redis proxy to handle request
 func newProxy() *Proxy {
 	proxy := &Proxy{}
-	proxy.gdt = map[string]proxyFunc{
-		"GET":                proxy.get,
-		"SET":                proxy.set,
-		"INCR":               proxy.incr,
-		"DECR":               proxy.decr,
-		"INCRBY":             proxy.incrby,
-		"DECRBY":             proxy.decrby,
-		"HSET":               proxy.hset,
-		"HMSET":              proxy.hmset,
-		"HGET":               proxy.hget,
-		"HDEL":               proxy.hdel,
-		"HLEN":               proxy.hlen,
-		"HMGET":              proxy.hmget,
-		"HKEYS":              proxy.hkeys,
-		"HVALS":              proxy.hvals,
-		"HINCRBY":            proxy.hincrby,
-		"HGETALL":            proxy.hgetall,
-		"HEXISTS":            proxy.hexists,
-		"ZADD":               proxy.zadd,
-		"ZSCORE":             proxy.zscore,
-		"ZREM":               proxy.zrem,
-		"ZCARD":              proxy.zcard,
-		"ZCOUNT":             proxy.zcount,
-		"ZRANK":              proxy.zrank,
-		"ZRANGE":             proxy.zrange,
-		"ZRANGEBYSCORE":      proxy.zrangebyscore,
-		"ZREMRANGEBYSCORE":   proxy.zremrangebyscore,
-		"ZREVRANGEWITHSCORE": proxy.proxyZrevRangeWithScore,
-		"SADD":               proxy.proxySadd,
-		"SCARD":              proxy.proxyScard,
-		"SISMEMBER":          proxy.proxySisMember,
-		"SMEMBERS":           proxy.proxySmembers,
-		"SREM":               proxy.proxySrem,
+	proxy.gdt = map[string]*methodDef{
+		"GET":                newMethodDef(proxy.get, true),
+		"SET":                newMethodDef(proxy.set, false),
+		"INCR":               newMethodDef(proxy.incr, false),
+		"DECR":               newMethodDef(proxy.decr, false),
+		"INCRBY":             newMethodDef(proxy.incrby, false),
+		"DECRBY":             newMethodDef(proxy.decrby, false),
+		"HSET":               newMethodDef(proxy.hset, false),
+		"HMSET":              newMethodDef(proxy.hmset, false),
+		"HGET":               newMethodDef(proxy.hget, true),
+		"HDEL":               newMethodDef(proxy.hdel, false),
+		"HLEN":               newMethodDef(proxy.hlen, true),
+		"HMGET":              newMethodDef(proxy.hmget, true),
+		"HKEYS":              newMethodDef(proxy.hkeys, true),
+		"HVALS":              newMethodDef(proxy.hvals, true),
+		"HINCRBY":            newMethodDef(proxy.hincrby, false),
+		"HGETALL":            newMethodDef(proxy.hgetall, true),
+		"HEXISTS":            newMethodDef(proxy.hexists, true),
+		"ZADD":               newMethodDef(proxy.zadd, false),
+		"ZSCORE":             newMethodDef(proxy.zscore, true),
+		"ZREM":               newMethodDef(proxy.zrem, false),
+		"ZCARD":              newMethodDef(proxy.zcard, true),
+		"ZCOUNT":             newMethodDef(proxy.zcount, true),
+		"ZRANK":              newMethodDef(proxy.zrank, true),
+		"ZRANGE":             newMethodDef(proxy.zrange, true),
+		"ZRANGEBYSCORE":      newMethodDef(proxy.zrangebyscore, true),
+		"ZREMRANGEBYSCORE":   newMethodDef(proxy.zremrangebyscore, false),
+		"ZREVRANGEWITHSCORE": newMethodDef(proxy.proxyZrevRangeWithScore, true),
+		"SADD":               newMethodDef(proxy.proxySadd, false),
+		"SCARD":              newMethodDef(proxy.proxyScard, true),
+		"SISMEMBER":          newMethodDef(proxy.proxySisMember, true),
+		"SMEMBERS":           newMethodDef(proxy.proxySmembers, true),
+		"SREM":               newMethodDef(proxy.proxySrem, false),
 	}
 
 	return proxy
 }
 
 func (proxy *Proxy) doRouter(cmd string, key string) (redisx.Redis, error) {
-	db, err := cfg.GetInstance().GetReadDB(cmd, key)
+	path, err := cfg.GetInstance().GetReadDB(cmd, proxy.gdt[cmd].isReadCmd, key)
 	if err != nil {
 		return nil, err
 	}
-	return db, nil
+	return path.DB.DB.Backend, nil
 }
 
 func (proxy *Proxy) invoke(req *codec.Request) *codec.Response {
 	cmd := strings.ToUpper(req.C)
 
 	if f, ok := proxy.gdt[cmd]; ok {
-		return f(req)
+		return f.function(req)
 	}
 
 	resp := codec.NewResponse()
