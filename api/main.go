@@ -55,11 +55,13 @@ func Start() {
 
 type Api struct {
 	saver cfg.Saver
+	fly cfg.Saver
 }
 
 func NewApi() *Api {
 	api := &Api{}
 	api.saver = cfg.NewEtcdClient()
+	api.fly = cfg.NewFly()
 	return api
 }
 
@@ -73,10 +75,231 @@ func (api *Api) dbgroup_save(w http.ResponseWriter, r *http.Request) {
 		w.Write(ResponseError(err))
 		return
 	}
-	api.saver.SaveOrUpdateDBGroup(item)
+	err = api.fly.SaveOrUpdateDBGroup(item)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	err = api.saver.SaveOrUpdateDBGroup(item)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
 	w.Write(ResponseOK)
 }
 
+
+func (api *Api) db_save(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	b, _ := ioutil.ReadAll(r.Body)
+
+	var objmap map[string]*json.RawMessage
+	err := json.Unmarshal(b, &objmap)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+
+	typeB, _ := objmap["Type"].MarshalJSON()
+	if string(typeB) == "\"postgres\"" {
+		var item *cfg.CfgDBPostgres
+		err = json.Unmarshal(b, &item)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+		err = api.fly.SaveOrUpdatePostgres(item)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+		err = api.saver.SaveOrUpdatePostgres(item)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+	} else if string(typeB) == "\"mysql\"" {
+		var item *cfg.CfgDBMysql
+		err = json.Unmarshal(b, &item)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+		err = api.fly.SaveOrUpdateMySql(item)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+		err = api.saver.SaveOrUpdateMySql(item)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+	} else if string(typeB) == "\"redis\"" {
+		var item *cfg.CfgDBRedis
+		err = json.Unmarshal(b, &item)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+		err = api.fly.SaveOrUpdateRedis(item)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+		err = api.saver.SaveOrUpdateRedis(item)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+	}
+	w.Write(ResponseOK)
+}
+
+func (api *Api) db_delete(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	t := vars["type"]
+	n := vars["name"]
+
+	if t == "pg" {
+		err := api.fly.RemovePostgres(n)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+		err = api.saver.RemovePostgres(n)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+	} else if t == "mysql" {
+		err := api.fly.RemoveMysql(n)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+		err = api.saver.RemoveMysql(n)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+
+	} else if t == "redis" {
+		err := api.fly.RemoveRedis(n)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+		err = api.saver.RemoveRedis(n)
+		if err != nil {
+			w.Write(ResponseError(err))
+			return
+		}
+	}
+	w.Write(ResponseOK)
+}
+
+func (api *Api) shard_save(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	b, _ := ioutil.ReadAll(r.Body)
+
+	var item *cfg.CfgShard
+	err := json.Unmarshal(b, &item)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	err = api.fly.SaveOrUpdateShard(item)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	err = api.saver.SaveOrUpdateShard(item)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	w.Write(ResponseOK)
+}
+
+
+func (api *Api) dbgroup_delete(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	n := vars["name"]
+
+	err := api.fly.RemoveDBGroup(n)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	err = api.saver.RemoveDBGroup(n)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	w.Write(ResponseOK)
+}
+func (api *Api) shard_delete(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	n := vars["name"]
+
+	err := api.fly.RemoveShard(n)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	err = api.saver.RemoveShard(n)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	w.Write(ResponseOK)
+}
+
+func (api *Api) rule_save(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	b, _ := ioutil.ReadAll(r.Body)
+
+	var item *cfg.CfgRule
+	err := json.Unmarshal(b, &item)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	err = api.fly.SaveOrUpdateRule(item)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	err = api.saver.SaveOrUpdateRule(item)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	w.Write(ResponseOK)
+}
+
+func (api *Api) rule_delete(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	n := vars["name"]
+
+	err := api.fly.RemoveRule(n)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+
+	err = api.saver.RemoveRule(n)
+	if err != nil {
+		w.Write(ResponseError(err))
+		return
+	}
+	w.Write(ResponseOK)
+}
 func (api *Api) dbgroup_all(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	all, err := api.saver.GetAllDBGroup()
@@ -117,81 +340,6 @@ func (api *Api) db_all(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
-func (api *Api) db_save(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	b, _ := ioutil.ReadAll(r.Body)
-
-	var objmap map[string]*json.RawMessage
-	err := json.Unmarshal(b, &objmap)
-	if err != nil {
-		w.Write(ResponseError(err))
-		return
-	}
-
-	typeB, _ := objmap["Type"].MarshalJSON()
-	if string(typeB) == "\"postgres\"" {
-		var item *cfg.CfgDBPostgres
-		err = json.Unmarshal(b, &item)
-		if err != nil {
-			w.Write(ResponseError(err))
-			return
-		}
-		api.saver.SaveOrUpdatePostgres(item)
-	} else if string(typeB) == "\"mysql\"" {
-		var item *cfg.CfgDBMysql
-		err = json.Unmarshal(b, &item)
-		if err != nil {
-			w.Write(ResponseError(err))
-			return
-		}
-		api.saver.SaveOrUpdateMySql(item)
-	} else if string(typeB) == "\"redis\"" {
-		var item *cfg.CfgDBRedis
-		err = json.Unmarshal(b, &item)
-		if err != nil {
-			w.Write(ResponseError(err))
-			return
-		}
-		api.saver.SaveOrUpdateRedis(item)
-	}
-	w.Write(ResponseOK)
-}
-
-func (api *Api) db_delete(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
-	t := vars["type"]
-	n := vars["name"]
-
-	var err error
-	if t == "pg" {
-		err = api.saver.RemovePostgres(n)
-	} else if t == "mysql" {
-		err = api.saver.RemoveMysql(n)
-	} else if t == "redis" {
-		err = api.saver.RemoveRedis(n)
-	}
-	if err != nil {
-		w.Write(ResponseError(err))
-		return
-	}
-	w.Write(ResponseOK)
-}
-
-func (api *Api) shard_save(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	b, _ := ioutil.ReadAll(r.Body)
-
-	var item *cfg.CfgShard
-	err := json.Unmarshal(b, &item)
-	if err != nil {
-		w.Write(ResponseError(err))
-		return
-	}
-	api.saver.SaveOrUpdateShard(item)
-	w.Write(ResponseOK)
-}
-
 func (api *Api) shard_all(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	all, err := api.saver.GetAllShard()
@@ -206,43 +354,6 @@ func (api *Api) shard_all(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write(b)
 }
-func (api *Api) dbgroup_delete(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
-	n := vars["name"]
-
-	err := api.saver.RemoveDBGroup(n)
-	if err != nil {
-		w.Write(ResponseError(err))
-		return
-	}
-	w.Write(ResponseOK)
-}
-func (api *Api) shard_delete(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
-	n := vars["name"]
-
-	err := api.saver.RemoveShard(n)
-	if err != nil {
-		w.Write(ResponseError(err))
-		return
-	}
-	w.Write(ResponseOK)
-}
-func (api *Api) rule_save(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	b, _ := ioutil.ReadAll(r.Body)
-
-	var item *cfg.CfgRule
-	err := json.Unmarshal(b, &item)
-	if err != nil {
-		w.Write(ResponseError(err))
-		return
-	}
-	api.saver.SaveOrUpdateRule(item)
-	w.Write(ResponseOK)
-}
 func (api *Api) rule_all(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	all, err := api.saver.GetAllRule()
@@ -256,16 +367,4 @@ func (api *Api) rule_all(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Write(b)
-}
-func (api *Api) rule_delete(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	vars := mux.Vars(r)
-	n := vars["name"]
-
-	err := api.saver.RemoveRule(n)
-	if err != nil {
-		w.Write(ResponseError(err))
-		return
-	}
-	w.Write(ResponseOK)
 }

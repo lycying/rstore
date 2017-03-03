@@ -36,7 +36,7 @@ type Rule_Instance struct {
 
 type Instance struct {
 	DBMap      map[string]map[string]*DB_Instance //type:name:instance
-	DBGroupMap map[string]map[string]*DBGroup_Instance
+	DBGroupMap map[string]*DBGroup_Instance
 	ShardMap   map[string]*Shard_Instance
 	RuleMap    map[string]*Rule_Instance
 }
@@ -48,6 +48,17 @@ func NewDBInstance(cfg DBer) *DB_Instance {
 }
 func NewDBGroupInstance(cfg *CfgDBGroup) *DBGroup_Instance{
 	db := &DBGroup_Instance{}
+	db.Cfg = cfg
+	db.MasterSlaves = make([]*DBExt_Instance,0)
+	return db
+}
+func NewShardInstance(cfg *CfgShard) *Shard_Instance{
+	db := &Shard_Instance{}
+	db.Cfg = cfg
+	return db
+}
+func NewRuleInstance(cfg *CfgRule) *Rule_Instance{
+	db := &Rule_Instance{}
 	db.Cfg = cfg
 	return db
 }
@@ -96,7 +107,7 @@ func (inst *Instance) GetReadDB(cmd string, key string) redisx.Redis {
 func NewInstance() *Instance {
 	ise := &Instance{}
 	ise.DBMap = make(map[string]map[string]*DB_Instance, 0)
-	ise.DBGroupMap = make(map[string]map[string]*DBGroup_Instance, 0)
+	ise.DBGroupMap = make(map[string]*DBGroup_Instance, 0)
 	ise.ShardMap = make(map[string]*Shard_Instance, 0)
 	ise.RuleMap = make(map[string]*Rule_Instance, 0)
 	return ise

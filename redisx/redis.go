@@ -1,6 +1,8 @@
 package redisx
 
 type Redis interface {
+	Close() error
+
 	EXISTS(key string) (bool, error)
 	GET(key string) (string, error)
 	SET(key string, value string) error

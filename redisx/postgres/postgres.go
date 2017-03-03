@@ -45,6 +45,9 @@ func NewPostgres(url string) (*Postgres, error) {
 	return pg, err
 }
 
+func (pg *Postgres) Close() error{
+	return pg.db.Close()
+}
 
 func (pg *Postgres) GetReal() *sql.DB{
 	return pg.db

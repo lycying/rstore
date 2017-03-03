@@ -245,6 +245,7 @@ window.operateEvents = {
             schema: scm
         });
         editor.setValue(row);
+        editor.getEditor('root.Type').disable();
         editor.getEditor('root.Name').disable();
         editor.on("change", function () {
             $("#preview").html(syntaxHighlight(editor.getValue()));

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lycying/rstore/redisx/postgres"
+	"regexp"
 	"time"
 )
 
@@ -57,7 +58,7 @@ func (fly *Fly) SaveOrUpdatePostgres(cfg *CfgDBPostgres) error {
 	fly.ise.DBMap[t][cfg.Name] = db
 
 	if needDestory {
-		go orgi.Backend.(*postgres.Postgres).GetReal().Close()
+		orgi.Backend.Close()
 	}
 	return nil
 }
@@ -70,10 +71,8 @@ func (fly *Fly) SaveOrUpdateRedis(cfg *CfgDBRedis) error {
 }
 
 func (fly *Fly) SaveOrUpdateDBGroup(cfg *CfgDBGroup) error {
+	dbgroup := NewDBGroupInstance(cfg)
 	t := cfg.Type
-	if _, ok := fly.ise.DBGroupMap[t]; !ok {
-		fly.ise.DBGroupMap[t] = make(map[string]*DBGroup_Instance, 0)
-	}
 	//rebuild
 	totalReadWeight := 0
 	for _, item := range cfg.Items {
@@ -87,16 +86,64 @@ func (fly *Fly) SaveOrUpdateDBGroup(cfg *CfgDBGroup) error {
 		} else {
 			return errors.New(fmt.Sprintf("no db named '%v' found ! can make instance. ", item.Name))
 		}
+		dbgroup.MasterSlaves = append(dbgroup.MasterSlaves, new)
 	}
-	dbgroup := NewDBGroupInstance(cfg)
 	dbgroup.TotalReadWeight = totalReadWeight
-	fly.ise.DBGroupMap[t][cfg.Name] = dbgroup
+	fly.ise.DBGroupMap[cfg.Name] = dbgroup
 	return nil
 }
 func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
+	shard := NewShardInstance(cfg)
+	for _, item := range cfg.ShardMap {
+		if item.RefType == "shard" {
+			if subShard, ok := fly.ise.ShardMap[item.RefName]; ok {
+				print(subShard)
+			} else {
+				return errors.New(fmt.Sprintf("no shard named '%v' found ! can make instance. ", item.RefName))
+			}
+		} else {
+			if subDBGroup, ok := fly.ise.DBGroupMap[item.RefName]; ok {
+				print(subDBGroup)
+			} else {
+				return errors.New(fmt.Sprintf("no dbgroup named '%v' found ! can make instance. ", item.RefName))
+			}
+		}
+	}
+	fly.ise.ShardMap[cfg.Name] = shard
+	return nil
+}
+func (fly *Fly) SaveOrUpdateRule(cfg *CfgRule) error {
+	rule := NewRuleInstance(cfg)
+	regex, err := regexp.Compile(cfg.Regexp)
+	if err != nil {
+		return err
+	}
+	if cfg.Example != "" {
+		if !regex.MatchString(cfg.Example) {
+			return errors.New(fmt.Sprint("( %v ) not match the regex ( %v )", cfg.Example, cfg.Regexp))
+		}
+	}
+	rule.Regexp = regex
+	fly.ise.RuleMap[cfg.Name] = rule
 	return nil
 }
 func (fly *Fly) RemovePostgres(name string) error {
+	t := "postgres"
+	//check use
+	for _, v := range fly.ise.DBGroupMap {
+		if v.Cfg.Type == t {
+			for _, gv := range v.Cfg.Items {
+				if gv.Name == name {
+					return errors.New(fmt.Sprintf(" %v is used by dbgroup %v", name, v.Cfg.Name))
+				}
+			}
+		}
+	}
+	//delete it
+	if v, ok := fly.ise.DBMap[t][name]; ok {
+		v.Backend.Close()
+		delete(fly.ise.DBMap[t], name)
+	}
 	return nil
 }
 func (fly *Fly) RemoveMysql(name string) error {
@@ -105,16 +152,46 @@ func (fly *Fly) RemoveMysql(name string) error {
 func (fly *Fly) RemoveRedis(name string) error {
 	return nil
 }
-func (fly *Fly) RemoveShard(name string) error {
-	return nil
-}
 func (fly *Fly) RemoveDBGroup(name string) error {
+	for _, v := range fly.ise.ShardMap {
+		for _, sv := range v.Cfg.ShardMap {
+			if sv.RefType == "dbgroup" {
+				if sv.RefName == name {
+
+					return errors.New(fmt.Sprintf(" %v is used by shard %v", name, v.Cfg.Name))
+				}
+			}
+		}
+	}
+	if _, ok := fly.ise.DBGroupMap[name]; ok {
+		delete(fly.ise.DBGroupMap, name)
+	}
 	return nil
 }
-func (fly *Fly) SaveOrUpdateRule(cfg *CfgRule) error {
+func (fly *Fly) RemoveShard(name string) error {
+	for _, v := range fly.ise.ShardMap {
+		for _, sv := range v.Cfg.ShardMap {
+			if sv.RefType == "shard" {
+				if sv.RefName == name {
+					return errors.New(fmt.Sprintf(" %v is used by shard %v", name, v.Cfg.Name))
+				}
+			}
+		}
+	}
+	for _, v := range fly.ise.RuleMap {
+		if v.Cfg.ShardName == name {
+			return errors.New(fmt.Sprintf(" %v is used by rule %v", name, v.Cfg.Name))
+		}
+	}
+	if _, ok := fly.ise.ShardMap[name]; ok {
+		delete(fly.ise.ShardMap, name)
+	}
 	return nil
 }
 func (fly *Fly) RemoveRule(name string) error {
+	if _, ok := fly.ise.RuleMap[name]; ok {
+		delete(fly.ise.RuleMap, name)
+	}
 	return nil
 }
 
