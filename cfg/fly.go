@@ -98,19 +98,21 @@ func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
 	ise := GetInstance()
 	shard := NewShardInstance(cfg)
 	for _, item := range cfg.ShardMap {
+		shardItemInstance := NewShardItemInstance(item)
 		if item.RefType == "shard" {
 			if subShard, ok := ise.ShardMap[item.RefName]; ok {
-				print(subShard)
+				shardItemInstance.Holder = subShard
 			} else {
 				return errors.New(fmt.Sprintf("no shard named '%v' found ! can make instance. ", item.RefName))
 			}
 		} else {
 			if subDBGroup, ok := ise.DBGroupMap[item.RefName]; ok {
-				print(subDBGroup)
+				shardItemInstance.Holder = subDBGroup
 			} else {
 				return errors.New(fmt.Sprintf("no dbgroup named '%v' found ! can make instance. ", item.RefName))
 			}
 		}
+		shard.ShardParts = append(shard.ShardParts,shardItemInstance)
 	}
 	ise.ShardMap[cfg.Name] = shard
 	return nil

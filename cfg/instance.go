@@ -82,6 +82,11 @@ func NewShardInstance(cfg *CfgShard) *Shard_Instance {
 	db.Cfg = cfg
 	return db
 }
+func NewShardItemInstance(cfg *ShardItem) *ShardItem_Instance{
+	db := &ShardItem_Instance{}
+	db.Cfg = cfg
+	return db
+}
 func NewRuleInstance(cfg *CfgRule) *Rule_Instance {
 	db := &Rule_Instance{}
 	db.Cfg = cfg
@@ -110,7 +115,7 @@ func (shard *Shard_Instance) GetDBGroupInstance(hashKey string,path *Path) (*DBG
 }
 
 
-func (ise *Instance) GetReadDB(cmd string, isReadCmd bool, key string) (*Path, error) {
+func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 	var p *Path = NewPath()
 	var db *DBExt_Instance
 	for _, rule := range ise.RuleMap {
@@ -172,7 +177,7 @@ func (ise *Instance) GetReadDB(cmd string, isReadCmd bool, key string) (*Path, e
 		p.DB = db
 		return p, nil
 	}
-	return p, errors.New(fmt.Sprintf("no router found for %v => %v", cmd, key))
+	return p, errors.New(fmt.Sprintf("no router found for  %v", key))
 }
 
 func NewInstance(saver Saver, fly Saver) *Instance {
