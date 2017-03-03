@@ -12,7 +12,7 @@ import (
 
 // proxyFunc recive a client request and return an new response
 // the the mut framework send it to the client
-type proxyFunc func(bool,*codec.Request) *codec.Response
+type proxyFunc func(bool, *codec.Request) *codec.Response
 
 type methodDef struct {
 	function  proxyFunc
@@ -85,7 +85,7 @@ func (proxy *Proxy) invoke(req *codec.Request) *codec.Response {
 	cmd := strings.ToUpper(req.C)
 
 	if f, ok := proxy.gdt[cmd]; ok {
-		return f.function(f.isReadCmd,req)
+		return f.function(f.isReadCmd, req)
 	}
 
 	resp := codec.NewResponse()
@@ -94,7 +94,7 @@ func (proxy *Proxy) invoke(req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) get(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) get(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -122,7 +122,7 @@ func (proxy *Proxy) get(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) set(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) set(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 2 {
@@ -146,7 +146,7 @@ func (proxy *Proxy) set(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) incr(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) incr(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -170,7 +170,7 @@ func (proxy *Proxy) incr(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) incrby(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) incrby(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 2 {
@@ -200,7 +200,7 @@ func (proxy *Proxy) incrby(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) decr(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) decr(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -224,7 +224,7 @@ func (proxy *Proxy) decr(isReadCmd bool,req *codec.Request) *codec.Response {
 	}
 	return resp
 }
-func (proxy *Proxy) decrby(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) decrby(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 2 {
@@ -257,7 +257,7 @@ func (proxy *Proxy) decrby(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hset(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hset(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 3 {
@@ -282,7 +282,7 @@ func (proxy *Proxy) hset(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hmset(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hmset(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	l := req.ParamsLen()
@@ -314,7 +314,7 @@ func (proxy *Proxy) hmset(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hget(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hget(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 2 {
@@ -343,7 +343,7 @@ func (proxy *Proxy) hget(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hgetall(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hgetall(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -377,7 +377,7 @@ func (proxy *Proxy) hgetall(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hmget(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hmget(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() < 2 {
@@ -411,7 +411,7 @@ func (proxy *Proxy) hmget(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hdel(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hdel(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 2 {
@@ -435,7 +435,7 @@ func (proxy *Proxy) hdel(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hlen(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hlen(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -459,7 +459,7 @@ func (proxy *Proxy) hlen(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hexists(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hexists(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 2 {
@@ -488,7 +488,7 @@ func (proxy *Proxy) hexists(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hkeys(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hkeys(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -512,7 +512,7 @@ func (proxy *Proxy) hkeys(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hvals(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hvals(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -536,7 +536,7 @@ func (proxy *Proxy) hvals(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) hincrby(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) hincrby(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 3 {
@@ -586,7 +586,7 @@ func (proxy *Proxy) TYPE(key string) (string, error) {
 	return "", nil
 }
 
-func (proxy *Proxy) zadd(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) zadd(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 3 {
@@ -616,7 +616,7 @@ func (proxy *Proxy) zadd(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) zscore(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) zscore(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 2 {
@@ -644,7 +644,7 @@ func (proxy *Proxy) zscore(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) zrem(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) zrem(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 2 {
@@ -668,7 +668,7 @@ func (proxy *Proxy) zrem(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) zremrangebyscore(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) zremrangebyscore(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 3 {
@@ -703,7 +703,7 @@ func (proxy *Proxy) zremrangebyscore(isReadCmd bool,req *codec.Request) *codec.R
 	}
 	return resp
 }
-func (proxy *Proxy) zrange(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) zrange(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	l := req.ParamsLen()
@@ -751,7 +751,7 @@ func (proxy *Proxy) zrange(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) zrangebyscore(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) zrangebyscore(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	l := req.ParamsLen()
@@ -799,7 +799,7 @@ func (proxy *Proxy) zrangebyscore(isReadCmd bool,req *codec.Request) *codec.Resp
 	return resp
 }
 
-func (proxy *Proxy) zcard(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) zcard(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -823,7 +823,7 @@ func (proxy *Proxy) zcard(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) zcount(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) zcount(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	if req.ParamsLen() != 3 {
 		resp.WriteError(rstore.WrongReqArgsNumber)
@@ -857,7 +857,7 @@ func (proxy *Proxy) zcount(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) zrank(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) zrank(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	if req.ParamsLen() != 2 {
 		resp.WriteError(rstore.WrongReqArgsNumber)
@@ -884,29 +884,29 @@ func (proxy *Proxy) zrank(isReadCmd bool,req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) proxyZrevRangeWithScore(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) proxyZrevRangeWithScore(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	return resp
 }
 
-func (proxy *Proxy) proxySadd(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) proxySadd(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	return resp
 }
-func (proxy *Proxy) proxyScard(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) proxyScard(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	return resp
 }
-func (proxy *Proxy) proxySisMember(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) proxySisMember(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	return resp
 }
 
-func (proxy *Proxy) proxySmembers(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) proxySmembers(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	return resp
 }
-func (proxy *Proxy) proxySrem(isReadCmd bool,req *codec.Request) *codec.Response {
+func (proxy *Proxy) proxySrem(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	return resp
 }
