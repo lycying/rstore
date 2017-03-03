@@ -3,9 +3,9 @@ package server
 import (
 	"fmt"
 	"github.com/lycying/rstore"
+	"github.com/lycying/rstore/cfg"
 	"github.com/lycying/rstore/codec"
 	"github.com/lycying/rstore/redisx"
-	"github.com/lycying/rstore/route"
 	"strconv"
 	"strings"
 )
@@ -16,8 +16,7 @@ type proxyFunc func(*codec.Request) *codec.Response
 
 // Proxy hold gdt(function global descriptor table)
 type Proxy struct {
-	gdt    map[string]proxyFunc
-	router *route.Router
+	gdt map[string]proxyFunc
 }
 
 // NewProxy make new redis proxy to handle request
@@ -58,16 +57,15 @@ func newProxy() *Proxy {
 		"SREM":               proxy.proxySrem,
 	}
 
-	proxy.router = route.NewRouter()
 	return proxy
 }
 
-func (proxy *Proxy) doRouter(key string) (redisx.Redis, error) {
-	db, err := proxy.router.GetDBUnit(key)
+func (proxy *Proxy) doRouter(cmd string, key string) (redisx.Redis, error) {
+	db, err := cfg.GetInstance().GetReadDB(cmd, key)
 	if err != nil {
 		return nil, err
 	}
-	return db.Backend, nil
+	return db, nil
 }
 
 func (proxy *Proxy) invoke(req *codec.Request) *codec.Response {
@@ -93,7 +91,7 @@ func (proxy *Proxy) get(req *codec.Request) *codec.Response {
 
 	k := req.P[0]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -121,7 +119,7 @@ func (proxy *Proxy) set(req *codec.Request) *codec.Response {
 
 	k, v := req.P[0], req.P[1]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -145,7 +143,7 @@ func (proxy *Proxy) incr(req *codec.Request) *codec.Response {
 
 	k := req.P[0]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -175,7 +173,7 @@ func (proxy *Proxy) incrby(req *codec.Request) *codec.Response {
 		return resp
 	}
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -200,7 +198,7 @@ func (proxy *Proxy) decr(req *codec.Request) *codec.Response {
 	k := req.P[0]
 	inc := int64(-1)
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -232,7 +230,7 @@ func (proxy *Proxy) decrby(req *codec.Request) *codec.Response {
 	//dec
 	inc = -inc
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -256,7 +254,7 @@ func (proxy *Proxy) hset(req *codec.Request) *codec.Response {
 
 	k, hk, v := req.P[0], req.P[1], req.P[2]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -287,7 +285,7 @@ func (proxy *Proxy) hmset(req *codec.Request) *codec.Response {
 		hkv[req.P[i]] = req.P[i+1]
 	}
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -313,7 +311,7 @@ func (proxy *Proxy) hget(req *codec.Request) *codec.Response {
 
 	k, hk := req.P[0], req.P[1]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -342,7 +340,7 @@ func (proxy *Proxy) hgetall(req *codec.Request) *codec.Response {
 
 	k := req.P[0]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -376,7 +374,7 @@ func (proxy *Proxy) hmget(req *codec.Request) *codec.Response {
 
 	k, hks := req.P[0], req.P[1:]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -409,7 +407,7 @@ func (proxy *Proxy) hdel(req *codec.Request) *codec.Response {
 	}
 
 	k, hk := req.P[0], req.P[1]
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -434,7 +432,7 @@ func (proxy *Proxy) hlen(req *codec.Request) *codec.Response {
 
 	k := req.P[0]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -457,7 +455,7 @@ func (proxy *Proxy) hexists(req *codec.Request) *codec.Response {
 	}
 
 	k, hk := req.P[0], req.P[1]
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -486,7 +484,7 @@ func (proxy *Proxy) hkeys(req *codec.Request) *codec.Response {
 	}
 
 	k := req.P[0]
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -511,7 +509,7 @@ func (proxy *Proxy) hvals(req *codec.Request) *codec.Response {
 
 	k := req.P[0]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -541,7 +539,7 @@ func (proxy *Proxy) hincrby(req *codec.Request) *codec.Response {
 		return resp
 	}
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -591,7 +589,7 @@ func (proxy *Proxy) zadd(req *codec.Request) *codec.Response {
 		return resp
 	}
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -615,7 +613,7 @@ func (proxy *Proxy) zscore(req *codec.Request) *codec.Response {
 
 	k, m := req.P[0], req.P[1]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -642,7 +640,7 @@ func (proxy *Proxy) zrem(req *codec.Request) *codec.Response {
 	}
 
 	k, m := req.P[0], req.P[1]
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -678,7 +676,7 @@ func (proxy *Proxy) zremrangebyscore(req *codec.Request) *codec.Response {
 		return resp
 	}
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -725,7 +723,7 @@ func (proxy *Proxy) zrange(req *codec.Request) *codec.Response {
 		return resp
 	}
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -772,7 +770,7 @@ func (proxy *Proxy) zrangebyscore(req *codec.Request) *codec.Response {
 		resp.WriteError(rstore.ParseFloatError)
 		return resp
 	}
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -798,7 +796,7 @@ func (proxy *Proxy) zcard(req *codec.Request) *codec.Response {
 
 	k := req.P[0]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -832,7 +830,7 @@ func (proxy *Proxy) zcount(req *codec.Request) *codec.Response {
 		return resp
 	}
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp
@@ -855,7 +853,7 @@ func (proxy *Proxy) zrank(req *codec.Request) *codec.Response {
 
 	k, m := req.P[0], req.P[1]
 
-	store, err := proxy.doRouter(k)
+	store, err := proxy.doRouter(req.C, k)
 	if err != nil {
 		resp.WriteError(err)
 		return resp

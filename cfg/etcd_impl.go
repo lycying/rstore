@@ -1,6 +1,5 @@
 package cfg
 
-
 import (
 	"encoding/json"
 	"github.com/coreos/etcd/client"
@@ -9,7 +8,7 @@ import (
 )
 
 type EtcdClient struct {
-	kapi client.KeysAPI
+	kapi   client.KeysAPI
 	prefix string
 }
 
@@ -294,7 +293,7 @@ func (c *EtcdClient) RemoveDBGroup(name string) error {
 	return err
 }
 
-func (c *EtcdClient) SaveOrUpdateRule(cfg *CfgRule) error{
+func (c *EtcdClient) SaveOrUpdateRule(cfg *CfgRule) error {
 	b, err := json.Marshal(cfg)
 	if err != nil {
 		return err
@@ -310,8 +309,8 @@ func (c *EtcdClient) SaveOrUpdateRule(cfg *CfgRule) error{
 	}
 	return nil
 }
-func (c *EtcdClient) GetAllRule() ([]*CfgRule, error){
-		vars := make(map[string]string)
+func (c *EtcdClient) GetAllRule() ([]*CfgRule, error) {
+	vars := make(map[string]string)
 	k := c.prefix + "/rule/"
 	resp, err := c.kapi.Get(context.Background(), k, &client.GetOptions{
 		Recursive: true,
@@ -336,7 +335,7 @@ func (c *EtcdClient) GetAllRule() ([]*CfgRule, error){
 	}
 	return ret, nil
 }
-func (c *EtcdClient) RemoveRule(name string) error{
+func (c *EtcdClient) RemoveRule(name string) error {
 	k := c.prefix + "/rule/" + name
 	_, err := c.kapi.Delete(context.Background(), k, &client.DeleteOptions{
 		Recursive: true,

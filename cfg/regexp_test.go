@@ -1,12 +1,12 @@
 package cfg
 
 import (
-	"testing"
 	"regexp"
+	"testing"
 )
 
 func Test(t *testing.T) {
-	regex,err := regexp.Compile(`app:(\d+):firstname`)
+	regex, err := regexp.Compile(`app:(\d+):firstname`)
 	if err != nil {
 	}
 	println(regex.MatchString("app:1223232:lastname"))

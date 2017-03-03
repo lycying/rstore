@@ -1,6 +1,5 @@
 package cfg
 
-
 type Watcher interface {
 	OnPostgresChange(*CfgDBPostgres) error
 	OnMysqlChange(*CfgDBPostgres) error

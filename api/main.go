@@ -60,8 +60,8 @@ type Api struct {
 
 func NewApi() *Api {
 	api := &Api{}
-	api.saver = cfg.NewEtcdClient()
-	api.fly = cfg.NewFly()
+	api.saver = cfg.GetSaver()
+	api.fly = cfg.GetFly()
 	return api
 }
 

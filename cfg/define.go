@@ -38,8 +38,8 @@ type CfgDBRedis struct {
 }
 
 type CfgDBGroupItem struct {
-	Name          string
-	IsMaster      bool
+	Name     string
+	IsMaster bool
 
 	ReadWeight int //default master is zero
 }
@@ -48,7 +48,7 @@ type CfgDBGroup struct {
 	CfgBase
 
 	ReplicateMode string
-	Items []*CfgDBGroupItem
+	Items         []*CfgDBGroupItem
 }
 
 type ShardItem struct {
