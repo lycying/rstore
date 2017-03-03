@@ -55,7 +55,7 @@ func Start() {
 
 type Api struct {
 	saver cfg.Saver
-	fly cfg.Saver
+	fly   cfg.Saver
 }
 
 func NewApi() *Api {
@@ -87,7 +87,6 @@ func (api *Api) dbgroup_save(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write(ResponseOK)
 }
-
 
 func (api *Api) db_save(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -222,7 +221,6 @@ func (api *Api) shard_save(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write(ResponseOK)
 }
-
 
 func (api *Api) dbgroup_delete(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")

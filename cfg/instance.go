@@ -27,7 +27,7 @@ type DBGroup_Instance struct {
 }
 
 type ShardItem_Instance struct {
-	Cfg 	*ShardItem
+	Cfg    *ShardItem
 	Holder interface{}
 }
 
@@ -52,16 +52,16 @@ type Instance struct {
 }
 
 type Path struct {
-	Rule *Rule_Instance
-	Shard []*Shard_Instance
-	Group *DBGroup_Instance
-	DB *DBExt_Instance
+	Rule    *Rule_Instance
+	Shard   []*Shard_Instance
+	Group   *DBGroup_Instance
+	DB      *DBExt_Instance
 	HashKey string
 }
 
-func NewPath() *Path{
+func NewPath() *Path {
 	path := &Path{
-		Shard: make([]*Shard_Instance,0),
+		Shard: make([]*Shard_Instance, 0),
 	}
 	return path
 }
@@ -82,7 +82,7 @@ func NewShardInstance(cfg *CfgShard) *Shard_Instance {
 	db.Cfg = cfg
 	return db
 }
-func NewShardItemInstance(cfg *ShardItem) *ShardItem_Instance{
+func NewShardItemInstance(cfg *ShardItem) *ShardItem_Instance {
 	db := &ShardItem_Instance{}
 	db.Cfg = cfg
 	return db
@@ -93,27 +93,26 @@ func NewRuleInstance(cfg *CfgRule) *Rule_Instance {
 	return db
 }
 
-func (shard *ShardItem_Instance) MatchItem(hashKey string) bool{
+func (shard *ShardItem_Instance) MatchItem(hashKey string) bool {
 	//TODO
 	return true
 }
 
-func (shard *Shard_Instance) GetDBGroupInstance(hashKey string,path *Path) (*DBGroup_Instance, error) {
-	path.Shard = append(path.Shard,shard)
+func (shard *Shard_Instance) GetDBGroupInstance(hashKey string, path *Path) (*DBGroup_Instance, error) {
+	path.Shard = append(path.Shard, shard)
 
-	for _,v := range shard.ShardParts{
-		if v.MatchItem(hashKey){
-			if v.Cfg.RefType == "shard"{
-				return v.Holder.(*Shard_Instance).GetDBGroupInstance(hashKey,path)
-			}else{
-				return v.Holder.(*DBGroup_Instance),nil
+	for _, v := range shard.ShardParts {
+		if v.MatchItem(hashKey) {
+			if v.Cfg.RefType == "shard" {
+				return v.Holder.(*Shard_Instance).GetDBGroupInstance(hashKey, path)
+			} else {
+				return v.Holder.(*DBGroup_Instance), nil
 			}
 			break
 		}
 	}
-	return nil,errors.New("no match dbgroup founded")
+	return nil, errors.New("no match dbgroup founded")
 }
-
 
 func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 	var p *Path = NewPath()
@@ -130,7 +129,7 @@ func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 			p.HashKey = hashKey
 			shardName := rule.Cfg.ShardName
 			if dbShardInstance, ok := ise.ShardMap[shardName]; ok {
-				dbGroupInstance, err := dbShardInstance.GetDBGroupInstance(hashKey,p)
+				dbGroupInstance, err := dbShardInstance.GetDBGroupInstance(hashKey, p)
 				if err != nil {
 					return p, err
 				}
@@ -151,23 +150,23 @@ func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 					if db == nil {
 						db = dbGroupInstance.MasterSlaves[rand.Intn(len(dbGroupInstance.MasterSlaves))]
 					}
-				}else{
-					masters := make([]*DBExt_Instance,0)
+				} else {
+					masters := make([]*DBExt_Instance, 0)
 					for _, tmp := range dbGroupInstance.MasterSlaves {
-						if tmp.IsMaster{
-							masters = append(masters,tmp)
+						if tmp.IsMaster {
+							masters = append(masters, tmp)
 						}
 					}
 					if len(masters) <= 0 {
-						return p,errors.New(fmt.Sprintf("Error : no master found in dbgroup %v", dbGroupInstance.Cfg.Name))
+						return p, errors.New(fmt.Sprintf("Error : no master found in dbgroup %v", dbGroupInstance.Cfg.Name))
 					}
-					if dbGroupInstance.Cfg.ReplicateMode == "none"{
+					if dbGroupInstance.Cfg.ReplicateMode == "none" {
 						//TODO should make raft and 2pc
 						db = masters[0]
 					}
 				}
-			}else{
-				return p,errors.New(fmt.Sprintf("not found %v in shardmap",shardName))
+			} else {
+				return p, errors.New(fmt.Sprintf("not found %v in shardmap", shardName))
 			}
 			//match once then break
 			break

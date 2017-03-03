@@ -112,7 +112,7 @@ func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
 				return errors.New(fmt.Sprintf("no dbgroup named '%v' found ! can make instance. ", item.RefName))
 			}
 		}
-		shard.ShardParts = append(shard.ShardParts,shardItemInstance)
+		shard.ShardParts = append(shard.ShardParts, shardItemInstance)
 	}
 	ise.ShardMap[cfg.Name] = shard
 	return nil
