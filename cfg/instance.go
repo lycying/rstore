@@ -6,6 +6,7 @@ import (
 	"github.com/lycying/rstore/redisx"
 	"math/rand"
 	"regexp"
+	"container/list"
 )
 
 type DB_Instance struct {
@@ -55,13 +56,14 @@ type Path struct {
 	Rule    *Rule_Instance
 	Shard   []*Shard_Instance
 	Group   *DBGroup_Instance
-	DB      *DBExt_Instance
+	DBs     []*DBExt_Instance
 	HashKey string
 }
 
 func NewPath() *Path {
 	path := &Path{
 		Shard: make([]*Shard_Instance, 0),
+		DBs: make([]*DBExt_Instance, 0),
 	}
 	return path
 }
@@ -103,9 +105,9 @@ func (shard *Shard_Instance) GetDBGroupInstance(hashKey string, path *Path) (*DB
 
 	for _, v := range shard.ShardParts {
 		if v.MatchItem(hashKey) {
-			if v.Cfg.RefType == "shard" {
+			if v.Cfg.RefType == Shard_RefType_Shard{
 				return v.Holder.(*Shard_Instance).GetDBGroupInstance(hashKey, path)
-			} else {
+			} else if v.Cfg.RefType == Shard_RefType_DBGroup{
 				return v.Holder.(*DBGroup_Instance), nil
 			}
 			break
@@ -116,39 +118,47 @@ func (shard *Shard_Instance) GetDBGroupInstance(hashKey string, path *Path) (*DB
 
 func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 	var p *Path = NewPath()
-	var db *DBExt_Instance
 	for _, rule := range ise.RuleMap {
 		sm := rule.Regexp.FindStringSubmatch(key)
 		if sm != nil {
 			p.Rule = rule
 			//yes , match
 			if rule.Cfg.HashSlot >= len(sm) {
-				return nil, errors.New(fmt.Sprintf("HashSlot is %v , but we only has %v submatch ", rule.Cfg.HashSlot, len(sm)))
+				return p, errors.New(fmt.Sprintf("HashSlot is %v , but we only has %v submatch ", rule.Cfg.HashSlot, len(sm)))
 			}
 			hashKey := sm[rule.Cfg.HashSlot]
 			p.HashKey = hashKey
 			shardName := rule.Cfg.ShardName
+			// can find the shard
 			if dbShardInstance, ok := ise.ShardMap[shardName]; ok {
 				dbGroupInstance, err := dbShardInstance.GetDBGroupInstance(hashKey, p)
 				if err != nil {
 					return p, err
 				}
 				p.Group = dbGroupInstance
+				if dbGroupInstance.TotalReadWeight <= 0{
+					return p,errors.New("no readable db found , you may change the readweight of the dbgroup")
+				}
 				if isReadCmd {
+					msLen := len(dbGroupInstance.MasterSlaves)
+					//only has one
+					if msLen ==  1{
+						p.DBs = append(p.DBs,dbGroupInstance.MasterSlaves[0])
+						break
+					}
+
 					var weight int
 					rnd := rand.Intn(dbGroupInstance.TotalReadWeight)
 					for _, tmp := range dbGroupInstance.MasterSlaves {
-						if tmp.ReadWeight == 0 {
+						//do not use any unit if the read weight is zero
+						if tmp.ReadWeight <= 0 {
 							continue
 						}
 						weight += tmp.ReadWeight
 						if weight >= rnd {
-							db = tmp
+							p.DBs = append(p.DBs,tmp)
 							break
 						}
-					}
-					if db == nil {
-						db = dbGroupInstance.MasterSlaves[rand.Intn(len(dbGroupInstance.MasterSlaves))]
 					}
 				} else {
 					masters := make([]*DBExt_Instance, 0)
@@ -160,20 +170,23 @@ func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 					if len(masters) <= 0 {
 						return p, errors.New(fmt.Sprintf("Error : no master found in dbgroup %v", dbGroupInstance.Cfg.Name))
 					}
-					if dbGroupInstance.Cfg.ReplicateMode == "none" {
+					if dbGroupInstance.Cfg.ReplicateMode == DBGroup_ReplicateMode_Writeone{
 						//TODO should make raft and 2pc
-						db = masters[0]
+						p.DBs = append(p.DBs,masters[0])
+					}else if dbGroupInstance.Cfg.ReplicateMode == DBGroup_ReplicateMode_Writeall{
+						//TODO
+					}else if dbGroupInstance.Cfg.ReplicateMode == DBGroup_ReplicateMode_Discard{
+						//TODO
 					}
 				}
-			} else {
+			} else {//can not find the shard
 				return p, errors.New(fmt.Sprintf("not found %v in shardmap", shardName))
 			}
 			//match once then break
 			break
 		}
 	}
-	if db != nil {
-		p.DB = db
+	if len(p.DBs) > 0 {
 		return p, nil
 	}
 	return p, errors.New(fmt.Sprintf("no router found for  %v", key))
@@ -229,12 +242,27 @@ func (ise *Instance) Init() {
 		}
 	}
 
+	loopList := list.New()
 	all_shard, err := ise.saver.GetAllShard()
 	if err != nil {
 		logger.Err(err, "error")
 	} else {
 		for _, v := range all_shard {
-			ise.fly.SaveOrUpdateShard(v)
+			err := ise.fly.SaveOrUpdateShard(v)
+			if err != nil {
+				loopList.PushBack(v)
+			}
+		}
+	}
+	for loopList.Len() > 0{
+		for e := loopList.Front(); e != nil; e = e.Next(){
+			try := e.Value.(*CfgShard)
+			err := ise.fly.SaveOrUpdateShard(try)
+			if err != nil {
+				logger.Debug("%v",try)
+			}else{
+				loopList.Remove(e)
+			}
 		}
 	}
 

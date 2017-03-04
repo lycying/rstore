@@ -1,5 +1,13 @@
 package cfg
 
+const(
+	DBGroup_ReplicateMode_Writeone = "writeone"
+	DBGroup_ReplicateMode_Writeall = "writeall"
+	DBGroup_ReplicateMode_Discard  = "discard"
+
+	Shard_RefType_DBGroup = "dbgroup"
+	Shard_RefType_Shard= "shard"
+)
 type DBer interface {
 }
 

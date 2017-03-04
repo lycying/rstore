@@ -78,7 +78,8 @@ func (proxy *Proxy) doRouter(isReadCmd bool, key string) (redisx.Redis, error) {
 	if err != nil {
 		return nil, err
 	}
-	return path.DB.DB.Backend, nil
+	//TODO
+	return path.DBs[0].DB.Backend, nil
 }
 
 func (proxy *Proxy) invoke(req *codec.Request) *codec.Response {

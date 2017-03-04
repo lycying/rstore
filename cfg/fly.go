@@ -1,6 +1,7 @@
 package cfg
 
 import (
+	"container/list"
 	"errors"
 	"fmt"
 	"github.com/lycying/rstore/redisx/postgres"
@@ -94,22 +95,59 @@ func (fly *Fly) SaveOrUpdateDBGroup(cfg *CfgDBGroup) error {
 	return nil
 }
 
+func shardDeps(shard *CfgShard, allShard []*CfgShard) *list.List {
+	shardList := list.New()
+	for _, v := range shard.ShardMap {
+		if v.RefType == Shard_RefType_Shard {
+			shardList.PushBack(v.RefName)
+			var subShard *CfgShard
+			for _, v2 := range allShard {
+				if v2.Name == v.RefName {
+					subShard = v2
+					break
+				}
+			}
+			if subShard != nil {
+				subList := shardDeps(subShard, allShard)
+				if subList.Len() > 0 {
+					for e := subList.Front(); e != nil; e = e.Next() {
+						shardList.PushBack(e.Value)
+					}
+				}
+			}
+		}
+	}
+	return shardList
+}
+
 func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
 	ise := GetInstance()
 	shard := NewShardInstance(cfg)
 	for _, item := range cfg.ShardMap {
 		shardItemInstance := NewShardItemInstance(item)
-		if item.RefType == "shard" {
+		if item.RefType == Shard_RefType_Shard {
 			if subShard, ok := ise.ShardMap[item.RefName]; ok {
+				//check loop
+				if subShard.Cfg.Name == cfg.Name {
+					return errors.New(fmt.Sprintf("can not ref itself %v", cfg.Name))
+				}
+				allShard, _ := ise.saver.GetAllShard()
+				depList := shardDeps(shard.Cfg, allShard)
+				for e := depList.Front(); e != nil; e = e.Next() {
+					if e.Value.(string) == cfg.Name {
+						return errors.New(fmt.Sprintf("has detect loop"))
+					}
+				}
+
 				shardItemInstance.Holder = subShard
 			} else {
-				return errors.New(fmt.Sprintf("no shard named '%v' found ! can make instance. ", item.RefName))
+				return errors.New(fmt.Sprintf("no shard named '%v' found ! can not make instance. ", item.RefName))
 			}
-		} else {
+		} else if item.RefType == Shard_RefType_DBGroup {
 			if subDBGroup, ok := ise.DBGroupMap[item.RefName]; ok {
 				shardItemInstance.Holder = subDBGroup
 			} else {
-				return errors.New(fmt.Sprintf("no dbgroup named '%v' found ! can make instance. ", item.RefName))
+				return errors.New(fmt.Sprintf("no dbgroup named '%v' found ! can not make instance. ", item.RefName))
 			}
 		}
 		shard.ShardParts = append(shard.ShardParts, shardItemInstance)
@@ -167,7 +205,7 @@ func (fly *Fly) RemoveDBGroup(name string) error {
 	ise := GetInstance()
 	for _, v := range ise.ShardMap {
 		for _, sv := range v.Cfg.ShardMap {
-			if sv.RefType == "dbgroup" {
+			if sv.RefType == Shard_RefType_DBGroup {
 				if sv.RefName == name {
 					return errors.New(fmt.Sprintf(" %v is used by shard %v", name, v.Cfg.Name))
 				}
