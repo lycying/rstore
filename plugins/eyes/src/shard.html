@@ -25,7 +25,7 @@
         <tr>
             <th data-field="Name" data-sortable="true">Name(Unique)</th>
             <th data-field="ShardType">ShardType</th>
-            <th data-field="ShardMap" data-formatter="">ShardMap</th>
+            <th data-field="ShardMap" data-formatter="shardmap">ShardMap</th>
             <th data-field="Optr" data-formatter="optr" data-events="operateEvents">Operate</th>
         </tr>
     </thead>
@@ -183,6 +183,19 @@ var loadShard = function(){
     scm.properties.ShardMap.items.oneOf[0].properties.RefName.enum = b;
     scm.properties.ShardMap.items.oneOf[1].properties.RefName.enum = a;
 
+};
+var shardmap = function(value,row,index){
+    var str = "";
+    $(value).each(function(i,v){
+        if(v.RefType == "shard"){
+            str += '<span class="label label-default">+</span>';
+        }else{
+            str += '<span class="label label-success">=</span>';
+        }
+        str += v.RefName;
+        str += "<br/>";
+    });
+    return str;
 };
 var optr = function(value,row,index){
     return "<input class='btn btn-info btn-xs edit' type='button' value='edit'></input> &nbsp;"+
