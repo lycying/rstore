@@ -40,14 +40,14 @@ var scm = {
             "type":"string",
             "ShardType":"string",
             "required":true,
-            "enum": ["hash","roundrobin","range"],
+            "enum": ["hash","mod","range"],
             "default":"hash"
         },
         "Name":{
             "type":"string",
             "title": "Supply a unique name",
             "minLength": 5,
-            "default": "round-sharding-my-postgres-id"
+            "default": ""
         },
         "ShardMap":{
             "type": "array",
@@ -188,7 +188,7 @@ var shardmap = function(value,row,index){
     var str = "";
     $(value).each(function(i,v){
         if(v.RefType == "shard"){
-            str += '<span class="label label-default">+</span>';
+            str += '<span class="label label-success">s</span>';
         }else{
             str += '<span class="label label-success">=</span>';
         }

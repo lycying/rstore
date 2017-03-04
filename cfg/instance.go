@@ -1,12 +1,14 @@
 package cfg
 
 import (
+	"container/list"
 	"errors"
 	"fmt"
 	"github.com/lycying/rstore/redisx"
+	"hash/crc32"
 	"math/rand"
 	"regexp"
-	"container/list"
+	"strconv"
 )
 
 type DB_Instance struct {
@@ -27,9 +29,19 @@ type DBGroup_Instance struct {
 	TotalReadWeight int //change this  when dbs changed
 }
 
+type ShardType_Range_Instance struct {
+	Start int64
+	End   int64
+}
+
+type ShardType_ModHash_Instance struct {
+	HashSeq int
+}
+
 type ShardItem_Instance struct {
 	Cfg    *ShardItem
 	Holder interface{}
+	ShardPartInstance interface{}
 }
 
 type Shard_Instance struct {
@@ -63,7 +75,7 @@ type Path struct {
 func NewPath() *Path {
 	path := &Path{
 		Shard: make([]*Shard_Instance, 0),
-		DBs: make([]*DBExt_Instance, 0),
+		DBs:   make([]*DBExt_Instance, 0),
 	}
 	return path
 }
@@ -95,24 +107,66 @@ func NewRuleInstance(cfg *CfgRule) *Rule_Instance {
 	return db
 }
 
-func (shard *ShardItem_Instance) MatchItem(hashKey string) bool {
-	//TODO
-	return true
-}
-
 func (shard *Shard_Instance) GetDBGroupInstance(hashKey string, path *Path) (*DBGroup_Instance, error) {
 	path.Shard = append(path.Shard, shard)
 
-	for _, v := range shard.ShardParts {
-		if v.MatchItem(hashKey) {
-			if v.Cfg.RefType == Shard_RefType_Shard{
-				return v.Holder.(*Shard_Instance).GetDBGroupInstance(hashKey, path)
-			} else if v.Cfg.RefType == Shard_RefType_DBGroup{
-				return v.Holder.(*DBGroup_Instance), nil
+	if len(shard.Cfg.ShardMap) <= 0 {
+		return nil, errors.New(fmt.Sprintf("shard (%v) has no any shard information", shard.Cfg.Name))
+	}
+
+	var aim *ShardItem_Instance = nil
+
+	if shard.Cfg.ShardType == Shard_ShardType_Mod || shard.Cfg.ShardType == Shard_ShardType_Hash {
+		var err error
+		int64hash := int64(0)
+		//mod assume the hashkey is a number , if not , return error
+		if shard.Cfg.ShardType == Shard_ShardType_Mod {
+			int64hash, err = strconv.ParseInt(hashKey, 10, 64)
+		} else {
+			//but the hash method use the sum32 to 	compute a number first ,it showed no error
+			ie := crc32.NewIEEE()
+			ie.Write([]byte(hashKey))
+			int64hash = int64(ie.Sum32())
+		}
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("can not parse hashkey %v to int ",hashKey))
+		}
+
+		length := int64(len(shard.Cfg.ShardMap))
+		slot := int(int64hash % length)
+
+		//loop to find it
+		for _, v := range shard.ShardParts {
+			if v.ShardPartInstance.(*ShardType_ModHash_Instance).HashSeq == slot {
+				aim = v
+				break
 			}
-			break
+		}
+	} else if shard.Cfg.ShardType == Shard_ShardType_Range {
+		int64hash, err := strconv.ParseInt(hashKey, 10, 64)
+		if err != nil {
+			return nil, errors.New(fmt.Sprintf("can not parse hashkey %v to int ",hashKey))
+		}
+		for _, v := range shard.ShardParts {
+			part := v.ShardPartInstance.(*ShardType_Range_Instance)
+			if int64hash > part.Start && int64hash <= part.End {
+				aim = v
+				break
+			}
 		}
 	}
+
+	if aim == nil {
+		return nil, errors.New(fmt.Sprintf("not match any mod . hashkey = %v,shardName = %v", hashKey, shard.Cfg.Name))
+	}
+
+	if aim.Cfg.RefType == Shard_RefType_Shard {
+		//loop to find it
+		return aim.Holder.(*Shard_Instance).GetDBGroupInstance(hashKey, path)
+	} else if aim.Cfg.RefType == Shard_RefType_DBGroup {
+		return aim.Holder.(*DBGroup_Instance), nil
+	}
+
 	return nil, errors.New("no match dbgroup founded")
 }
 
@@ -132,18 +186,19 @@ func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 			// can find the shard
 			if dbShardInstance, ok := ise.ShardMap[shardName]; ok {
 				dbGroupInstance, err := dbShardInstance.GetDBGroupInstance(hashKey, p)
+				//the error has translate
 				if err != nil {
 					return p, err
 				}
 				p.Group = dbGroupInstance
-				if dbGroupInstance.TotalReadWeight <= 0{
-					return p,errors.New("no readable db found , you may change the readweight of the dbgroup")
+				if dbGroupInstance.TotalReadWeight <= 0 {
+					return p, errors.New("no readable db found , you may change the readweight of the dbgroup")
 				}
 				if isReadCmd {
 					msLen := len(dbGroupInstance.MasterSlaves)
 					//only has one
-					if msLen ==  1{
-						p.DBs = append(p.DBs,dbGroupInstance.MasterSlaves[0])
+					if msLen == 1 {
+						p.DBs = append(p.DBs, dbGroupInstance.MasterSlaves[0])
 						break
 					}
 
@@ -156,7 +211,7 @@ func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 						}
 						weight += tmp.ReadWeight
 						if weight >= rnd {
-							p.DBs = append(p.DBs,tmp)
+							p.DBs = append(p.DBs, tmp)
 							break
 						}
 					}
@@ -170,16 +225,18 @@ func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 					if len(masters) <= 0 {
 						return p, errors.New(fmt.Sprintf("Error : no master found in dbgroup %v", dbGroupInstance.Cfg.Name))
 					}
-					if dbGroupInstance.Cfg.ReplicateMode == DBGroup_ReplicateMode_Writeone{
+					if dbGroupInstance.Cfg.ReplicateMode == DBGroup_ReplicateMode_Writeone {
 						//TODO should make raft and 2pc
-						p.DBs = append(p.DBs,masters[0])
-					}else if dbGroupInstance.Cfg.ReplicateMode == DBGroup_ReplicateMode_Writeall{
+						p.DBs = append(p.DBs, masters[0])
+					} else if dbGroupInstance.Cfg.ReplicateMode == DBGroup_ReplicateMode_Writeall {
+						p.DBs = append(p.DBs, masters[0])
 						//TODO
-					}else if dbGroupInstance.Cfg.ReplicateMode == DBGroup_ReplicateMode_Discard{
+					} else if dbGroupInstance.Cfg.ReplicateMode == DBGroup_ReplicateMode_Discard {
+						p.DBs = append(p.DBs, masters[0])
 						//TODO
 					}
 				}
-			} else {//can not find the shard
+			} else { //can not find the shard
 				return p, errors.New(fmt.Sprintf("not found %v in shardmap", shardName))
 			}
 			//match once then break
@@ -254,13 +311,13 @@ func (ise *Instance) Init() {
 			}
 		}
 	}
-	for loopList.Len() > 0{
-		for e := loopList.Front(); e != nil; e = e.Next(){
+	for loopList.Len() > 0 {
+		for e := loopList.Front(); e != nil; e = e.Next() {
 			try := e.Value.(*CfgShard)
 			err := ise.fly.SaveOrUpdateShard(try)
 			if err != nil {
-				logger.Debug("%v",try)
-			}else{
+				logger.Debug("%v", try)
+			} else {
 				loopList.Remove(e)
 			}
 		}

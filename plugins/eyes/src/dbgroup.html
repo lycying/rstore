@@ -49,7 +49,7 @@ var scm = {
             "type":"string",
             "title": "Supply a unique name",
             "minLength": 5,
-            "default": "dbgroup001"
+            "default": ""
         },
         "Enable":{
             "type": "boolean",
@@ -85,7 +85,8 @@ var scm = {
                     "IsMaster":{
                         "type": "boolean",
                         "title": "Master",
-                        "format": "checkbox"
+                        "format": "checkbox",
+                        "default":true,
                     },
                    "ReadWeight":{
                         "type": "integer",

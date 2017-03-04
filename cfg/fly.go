@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"github.com/lycying/rstore/redisx/postgres"
 	"regexp"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -123,6 +125,11 @@ func shardDeps(shard *CfgShard, allShard []*CfgShard) *list.List {
 func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
 	ise := GetInstance()
 	shard := NewShardInstance(cfg)
+	if cfg.ShardType != Shard_ShardType_Mod &&
+		cfg.ShardType != Shard_ShardType_Hash &&
+		cfg.ShardType != Shard_ShardType_Range {
+		return errors.New(fmt.Sprintf("not support this hash method %v ", cfg.ShardType))
+	}
 	for _, item := range cfg.ShardMap {
 		shardItemInstance := NewShardItemInstance(item)
 		if item.RefType == Shard_RefType_Shard {
@@ -138,7 +145,6 @@ func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
 						return errors.New(fmt.Sprintf("has detect loop"))
 					}
 				}
-
 				shardItemInstance.Holder = subShard
 			} else {
 				return errors.New(fmt.Sprintf("no shard named '%v' found ! can not make instance. ", item.RefName))
@@ -149,6 +155,35 @@ func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
 			} else {
 				return errors.New(fmt.Sprintf("no dbgroup named '%v' found ! can not make instance. ", item.RefName))
 			}
+		}
+		if cfg.ShardType == Shard_ShardType_Mod || cfg.ShardType == Shard_ShardType_Hash {
+			int32Slot, err := strconv.ParseInt(item.ShardStr, 10, 32)
+			if err != nil {
+				return err
+			}
+			shardPartInstance := &ShardType_ModHash_Instance{}
+			shardPartInstance.HashSeq = int(int32Slot)
+			shardItemInstance.ShardPartInstance = shardPartInstance
+		} else if cfg.ShardType == Shard_ShardType_Range {
+			strs := strings.Split(item.ShardStr, "-")
+			if len(strs) != 2 {
+				return errors.New(fmt.Sprintf("shardStr is not formatted ! shardType = %v , shardStr = %v ", cfg.ShardType, item.ShardStr))
+			}
+			start, err := strconv.ParseInt(strs[0], 10, 64)
+			if err != nil {
+				return errors.New(fmt.Sprintf("parser start error ! shardType = %v , shardStr = %v ", cfg.ShardType, item.ShardStr))
+			}
+			end, err := strconv.ParseInt(strs[1], 10, 64)
+			if err != nil {
+				return errors.New(fmt.Sprintf("parser end error ! shardType = %v , shardStr = %v ", cfg.ShardType, item.ShardStr))
+			}
+			if start >= end {
+				return errors.New(fmt.Sprintf("aha? (start = %v) > (end = %v) ", start, end))
+			}
+			shardPartInstance := &ShardType_Range_Instance{}
+			shardPartInstance.Start = start
+			shardPartInstance.End = end
+			shardItemInstance.ShardPartInstance = shardPartInstance
 		}
 		shard.ShardParts = append(shard.ShardParts, shardItemInstance)
 	}
@@ -165,7 +200,7 @@ func (fly *Fly) SaveOrUpdateRule(cfg *CfgRule) error {
 	}
 	if cfg.Example != "" {
 		if !regex.MatchString(cfg.Example) {
-			return errors.New(fmt.Sprint("( %v ) not match the regex ( %v )", cfg.Example, cfg.Regexp))
+			return errors.New(fmt.Sprintf("( %v ) not match the regex ( %v )", cfg.Example, cfg.Regexp))
 		}
 	}
 	rule.Regexp = regex
