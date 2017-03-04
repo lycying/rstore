@@ -21,7 +21,6 @@ func (srv *ProxyServer) OnConnect(c *mut.Conn) {
 
 func (srv *ProxyServer) OnMessage(c *mut.Conn, p mut.Packet) {
 	req := p.(*codec.Request)
-	logger.Debug("%+v", req)
 	//c.WriteRaw([]byte("$-1\r\n"))
 	//resp:=codec.NewResponse()
 	//resp.WriteOK()
