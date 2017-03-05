@@ -15,6 +15,7 @@ var (
 	KV_UPDATE_SQL      = "insert into rstore_kv(\"rkey\",\"val\",\"lastTime\") values($1,$2,$3) on conflict(rkey) do update set \"val\"=$2,\"lastTime\"=$3"
 	KV_QUERY_VALUE_SQL = "select val from rstore_kv where \"rkey\" = $1"
 	KV_DEL_SQL         = "delete from rstore_kv where \"rkey\" = $1"
+	KV_EXISTS_SQL      = "select count(*) as n from rstore_kv where  \"rkey\" = $1"
 
 	HASH_UPDATE_SQL      = "insert into rstore_hash(\"rkey\",\"hkey\",\"val\",\"lastTime\") values($1,$2,$3,$4) on conflict(rkey,hkey) do update set \"val\"=$3,\"lastTime\"=$4"
 	HASH_QUERY_VALUE_SQL = "select val from rstore_hash where \"rkey\" = $1 and \"hkey\" = $2 "
@@ -22,6 +23,7 @@ var (
 	HASH_DEL_HKEY_SQL    = "delete from rstore_hash where \"rkey\" = $1 and \"hkey\" = $2 "
 	HASH_DEL_ALL_SQL     = "delete from rstore_hash where \"rkey\" = $1 "
 	HASH_COUNT_SQL       = "select count(*) as num from rstore_hash where \"rkey\" = $1"
+	HASH_EXISTS_SQL      = HASH_COUNT_SQL
 
 	ZSET_UPDATE_SQL           = "insert into rstore_zset(\"rkey\",\"member\",\"score\",\"lastTime\") values($1,$2,$3,$4) on conflict(rkey,member) do update set \"score\"=$3,\"lastTime\"=$4"
 	ZSET_QUERY_ONE_SQL        = "select score from rstore_zset where \"rkey\" = $1 and \"member\" = $2 "
@@ -33,6 +35,7 @@ var (
 	ZSET_ZRANGEBYSCORE_SQL    = "select member,score from rstore_zset where \"rkey\" = $1 and score>=$2 and score<=$3 order by score asc,member asc"
 	ZSET_ZRANGE_SQL           = "select member,score from rstore_zset where \"rkey\" = $1 order by score asc offset $2 limit $3 "
 	ZSET_ZRANK_SQL            = "select rank from (select member,rank() over (order by \"score\" asc, \"lastTime\" asc) as rank from rstore_zset where \"rkey\" = $1 ) m where m.\"member\"= $2;"
+	ZSET_EXISTS_SQL           = ZSET_COUNT_SQL
 
 	SET_UPDATE_SQL    = "insert into rstore_set(\"rkey\",\"member\",\"lastTime\") values($1,$2,$3) on conflict(rkey,member) do update set \"lastTime\"=$3"
 	SET_COUNT_SQL     = "select count(*) as num from rstore_set where \"rkey\" = $1"
@@ -40,6 +43,7 @@ var (
 	SET_QUERY_ALL_SQL = "select member from rstore_set where \"rkey\" = $1"
 	SET_DEL_ONE_SQL   = "delete from rstore_set where \"rkey\" = $1 and \"member\" = $2"
 	SET_DEL_ALL_SQL   = "delete from rstore_set where \"rkey\" = $1"
+	SET_EXISTS_SQL    = SET_COUNT_SQL
 )
 
 type Postgres struct {
@@ -89,11 +93,134 @@ func (pg *Postgres) timestamp() int64 {
 	return time.Now().UnixNano() / 1e6
 }
 
-func (pg *Postgres) EXISTS(key string) (bool, error) {
-	return false, nil
+func (pg *Postgres) TYPE(key string) (string, error) {
+	name, ex, err := pg.EXISTS(key)
+	if err != nil {
+		return name, err
+	}
+	if ex {
+		return name, nil
+	}
+	return "", nil
 }
-func (pg *Postgres) DEL(key string) error {
-	return nil
+
+func (pg *Postgres) EXISTS(key string) (string, bool, error) {
+	var n string
+
+	rows, err := pg.db.Query(KV_EXISTS_SQL, key)
+	if err != nil {
+		return "none", false, err
+	}
+	for rows.Next() {
+		err = rows.Scan(&n)
+		if err != nil {
+			return "none", false, err
+		}
+	}
+	num, err := strconv.ParseInt(n, 10, 32)
+	if num > 0 {
+		return "string", true, nil
+	}
+
+	////////////////////////hash/////////////////////
+	rows, err = pg.db.Query(HASH_EXISTS_SQL, key)
+	if err != nil {
+		return "none", false, err
+	}
+	for rows.Next() {
+		err = rows.Scan(&n)
+		if err != nil {
+			return "none", false, err
+		}
+	}
+	num, err = strconv.ParseInt(n, 10, 32)
+	if num > 0 {
+		return "hash", true, nil
+	}
+
+	////////////////////////zset/////////////////////
+	rows, err = pg.db.Query(ZSET_EXISTS_SQL, key)
+	if err != nil {
+		return "none", false, err
+	}
+	for rows.Next() {
+		err = rows.Scan(&n)
+		if err != nil {
+			return "none", false, err
+		}
+	}
+	num, err = strconv.ParseInt(n, 10, 32)
+	if num > 0 {
+		return "zset", true, nil
+	}
+	////////////////////////zset/////////////////////
+	rows, err = pg.db.Query(SET_EXISTS_SQL, key)
+	if err != nil {
+		return "none", false, err
+	}
+	for rows.Next() {
+		err = rows.Scan(&n)
+		if err != nil {
+			return "none", false, err
+		}
+	}
+	num, err = strconv.ParseInt(n, 10, 32)
+	if num > 0 {
+		return "set", true, nil
+	}
+
+	return "none", false, nil
+}
+
+func (pg *Postgres) delOne(key string) (int, error) {
+	rs, err := pg.db.Exec(KV_DEL_SQL, key)
+	if err != nil {
+		return 0, err
+	}
+	af, err := rs.RowsAffected()
+	if af > 0 {
+		return int(af), err
+	}
+
+	rs, err = pg.db.Exec(HASH_DEL_ALL_SQL, key)
+	if err != nil {
+		return 0, err
+	}
+	af, err = rs.RowsAffected()
+	if af > 0 {
+		return int(af), err
+	}
+
+	rs, err = pg.db.Exec(ZSET_DEL_ALL_SQL, key)
+	if err != nil {
+		return 0, err
+	}
+	af, err = rs.RowsAffected()
+	if af > 0 {
+		return int(af), err
+	}
+
+	rs, err = pg.db.Exec(SET_DEL_ALL_SQL, key)
+	if err != nil {
+		return 0, err
+	}
+	af, err = rs.RowsAffected()
+	if af > 0 {
+		return int(af), err
+	}
+	return 0, nil
+}
+
+func (pg *Postgres) DEL(keys []string) (int, error) {
+	num := 0
+	for _, v := range keys {
+		n, err := pg.delOne(v)
+		if err != nil {
+			return num, err
+		}
+		num += n
+	}
+	return num, nil
 }
 
 func (pg *Postgres) EXPIRE(key string, expireSeconds int) (int64, error) {
@@ -106,10 +233,6 @@ func (pg *Postgres) EXPIREAT(key string, expireAt int) (int64, error) {
 
 func (pg *Postgres) TTL(key string) (int64, error) {
 	return 0, nil
-}
-
-func (pg *Postgres) TYPE(key string) (string, error) {
-	return "", nil
 }
 
 func (pg *Postgres) GET(key string) (string, error) {

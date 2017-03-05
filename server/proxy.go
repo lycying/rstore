@@ -35,6 +35,8 @@ type Proxy struct {
 func newProxy() *Proxy {
 	proxy := &Proxy{}
 	proxy.gdt = map[string]*methodDef{
+		"TYPE":               newMethodDef(proxy.proxyType, true),
+		"EXISTS":             newMethodDef(proxy.exists, true),
 		"GET":                newMethodDef(proxy.get, true),
 		"SET":                newMethodDef(proxy.set, false),
 		"INCR":               newMethodDef(proxy.incr, false),
@@ -61,12 +63,12 @@ func newProxy() *Proxy {
 		"ZRANGE":             newMethodDef(proxy.zrange, true),
 		"ZRANGEBYSCORE":      newMethodDef(proxy.zrangebyscore, true),
 		"ZREMRANGEBYSCORE":   newMethodDef(proxy.zremrangebyscore, false),
-		"ZREVRANGEWITHSCORE": newMethodDef(proxy.proxyZrevRangeWithScore, true),
-		"SADD":               newMethodDef(proxy.proxySadd, false),
-		"SCARD":              newMethodDef(proxy.proxyScard, true),
-		"SISMEMBER":          newMethodDef(proxy.proxySisMember, true),
-		"SMEMBERS":           newMethodDef(proxy.proxySmembers, true),
-		"SREM":               newMethodDef(proxy.proxySrem, false),
+		"ZREVRANGEWITHSCORE": newMethodDef(proxy.zrevrangewithScore, true),
+		"SADD":               newMethodDef(proxy.sadd, false),
+		"SCARD":              newMethodDef(proxy.scard, true),
+		"SISMEMBER":          newMethodDef(proxy.sismember, true),
+		"SMEMBERS":           newMethodDef(proxy.smembers, true),
+		"SREM":               newMethodDef(proxy.srem, false),
 	}
 
 	return proxy
@@ -885,12 +887,12 @@ func (proxy *Proxy) zrank(isReadCmd bool, req *codec.Request) *codec.Response {
 	return resp
 }
 
-func (proxy *Proxy) proxyZrevRangeWithScore(isReadCmd bool, req *codec.Request) *codec.Response {
+func (proxy *Proxy) zrevrangewithScore(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	return resp
 }
 
-func (proxy *Proxy) proxySadd(isReadCmd bool, req *codec.Request) *codec.Response {
+func (proxy *Proxy) sadd(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() < 2 {
@@ -919,7 +921,7 @@ func (proxy *Proxy) proxySadd(isReadCmd bool, req *codec.Request) *codec.Respons
 	}
 	return resp
 }
-func (proxy *Proxy) proxyScard(isReadCmd bool, req *codec.Request) *codec.Response {
+func (proxy *Proxy) scard(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -942,7 +944,7 @@ func (proxy *Proxy) proxyScard(isReadCmd bool, req *codec.Request) *codec.Respon
 	}
 	return resp
 }
-func (proxy *Proxy) proxySisMember(isReadCmd bool, req *codec.Request) *codec.Response {
+func (proxy *Proxy) sismember(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 	if req.ParamsLen() != 2 {
 		resp.WriteError(rstore.WrongReqArgsNumber)
@@ -970,7 +972,7 @@ func (proxy *Proxy) proxySisMember(isReadCmd bool, req *codec.Request) *codec.Re
 	return resp
 }
 
-func (proxy *Proxy) proxySmembers(isReadCmd bool, req *codec.Request) *codec.Response {
+func (proxy *Proxy) smembers(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() != 1 {
@@ -1001,7 +1003,7 @@ func (proxy *Proxy) proxySmembers(isReadCmd bool, req *codec.Request) *codec.Res
 	}
 	return resp
 }
-func (proxy *Proxy) proxySrem(isReadCmd bool, req *codec.Request) *codec.Response {
+func (proxy *Proxy) srem(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
 	if req.ParamsLen() < 2 {
@@ -1026,6 +1028,58 @@ func (proxy *Proxy) proxySrem(isReadCmd bool, req *codec.Request) *codec.Respons
 		resp.WriteError(err)
 	} else {
 		resp.WriteInt(n)
+	}
+	return resp
+}
+
+func (proxy *Proxy) exists(isReadCmd bool, req *codec.Request) *codec.Response {
+	resp := codec.NewResponse()
+
+	if req.ParamsLen() != 1 {
+		resp.WriteError(rstore.WrongReqArgsNumber)
+		return resp
+	}
+
+	k := req.P[0]
+	store, err := proxy.doRouter(isReadCmd, k)
+	if err != nil {
+		resp.WriteError(err)
+		return resp
+	}
+
+	_, ex, err := store.EXISTS(k)
+	if err != nil {
+		resp.WriteError(err)
+	} else {
+		if ex {
+			resp.WriteInt(1)
+		} else {
+			resp.WriteInt(0)
+		}
+	}
+	return resp
+}
+
+func (proxy *Proxy) proxyType(isReadCmd bool, req *codec.Request) *codec.Response {
+	resp := codec.NewResponse()
+
+	if req.ParamsLen() != 1 {
+		resp.WriteError(rstore.WrongReqArgsNumber)
+		return resp
+	}
+
+	k := req.P[0]
+	store, err := proxy.doRouter(isReadCmd, k)
+	if err != nil {
+		resp.WriteError(err)
+		return resp
+	}
+
+	name, err := store.TYPE(k)
+	if err != nil {
+		resp.WriteError(err)
+	} else {
+		resp.WriteInlineString(name)
 	}
 	return resp
 }

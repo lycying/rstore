@@ -3,10 +3,10 @@ package redisx
 type Redis interface {
 	Close() error
 
-	EXISTS(key string) (bool, error)
+	EXISTS(key string) (string ,bool, error) //key_type , bool ,error
 	GET(key string) (string, error)
 	SET(key string, value string) error
-	DEL(key string) error
+	DEL(key []string) (int, error)
 	INCRBY(key string, increment int64) (int64, error)
 	EXPIRE(key string, expireSeconds int) (int64, error)
 	EXPIREAT(key string, expireAt int) (int64, error)
