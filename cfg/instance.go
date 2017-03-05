@@ -106,6 +106,17 @@ func NewRuleInstance(cfg *CfgRule) *Rule_Instance {
 	db.Cfg = cfg
 	return db
 }
+func NewInstance(saver Saver, fly Saver) *Instance {
+	ise := &Instance{
+		DBMap:      make(map[string]map[string]*DB_Instance),
+		DBGroupMap: make(map[string]*DBGroup_Instance),
+		ShardMap:   make(map[string]*Shard_Instance),
+		RuleMap:    make(map[string]*Rule_Instance),
+		saver:      saver,
+		fly:        fly,
+	}
+	return ise
+}
 
 func (shard *Shard_Instance) GetDBGroupInstance(hashKey string, path *Path) (*DBGroup_Instance, error) {
 	path.Shard = append(path.Shard, shard)
@@ -249,17 +260,7 @@ func (ise *Instance) GetReadDB(isReadCmd bool, key string) (*Path, error) {
 	return p, errors.New(fmt.Sprintf("no router found for  %v", key))
 }
 
-func NewInstance(saver Saver, fly Saver) *Instance {
-	ise := &Instance{
-		DBMap:      make(map[string]map[string]*DB_Instance),
-		DBGroupMap: make(map[string]*DBGroup_Instance),
-		ShardMap:   make(map[string]*Shard_Instance),
-		RuleMap:    make(map[string]*Rule_Instance),
-		saver:      saver,
-		fly:        fly,
-	}
-	return ise
-}
+
 
 //init it from saver
 func (ise *Instance) Init() {

@@ -12,6 +12,7 @@ import (
 )
 
 type Fly struct {
+	Saver
 }
 
 func NewFly() *Fly {
@@ -19,7 +20,21 @@ func NewFly() *Fly {
 	return fly
 }
 
+func checkName(minLen int, name string) error {
+	if len(name) < minLen {
+		return errors.New(fmt.Sprintf("Name should at least %v ", minLen))
+	}
+	if !nameRegex.MatchString(name) {
+		return errors.New(fmt.Sprintf("Name is not acceptted because it not match the regex %v", nameRegex.String()))
+	}
+	return nil
+}
+
 func (fly *Fly) SaveOrUpdatePostgres(cfg *CfgDBPostgres) error {
+	err := checkName(3, cfg.Name)
+	if err != nil {
+		return err
+	}
 	ise := GetInstance()
 	t := cfg.Type
 	//make new type map if not exist
@@ -67,13 +82,25 @@ func (fly *Fly) SaveOrUpdatePostgres(cfg *CfgDBPostgres) error {
 }
 
 func (fly *Fly) SaveOrUpdateMySql(cfg *CfgDBMysql) error {
+	err := checkName(3, cfg.Name)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 func (fly *Fly) SaveOrUpdateRedis(cfg *CfgDBRedis) error {
+	err := checkName(3, cfg.Name)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 func (fly *Fly) SaveOrUpdateDBGroup(cfg *CfgDBGroup) error {
+	err := checkName(3, cfg.Name)
+	if err != nil {
+		return err
+	}
 	ise := GetInstance()
 	t := cfg.Type
 	dbgroup := NewDBGroupInstance(cfg)
@@ -123,6 +150,10 @@ func shardDeps(shard *CfgShard, allShard []*CfgShard) *list.List {
 }
 
 func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
+	err := checkName(3, cfg.Name)
+	if err != nil {
+		return err
+	}
 	ise := GetInstance()
 	shard := NewShardInstance(cfg)
 	if cfg.ShardType != Shard_ShardType_Mod &&
@@ -192,6 +223,10 @@ func (fly *Fly) SaveOrUpdateShard(cfg *CfgShard) error {
 }
 
 func (fly *Fly) SaveOrUpdateRule(cfg *CfgRule) error {
+	err := checkName(3, cfg.Name)
+	if err != nil {
+		return err
+	}
 	ise := GetInstance()
 	rule := NewRuleInstance(cfg)
 	regex, err := regexp.Compile(cfg.Regexp)
