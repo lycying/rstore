@@ -892,22 +892,140 @@ func (proxy *Proxy) proxyZrevRangeWithScore(isReadCmd bool, req *codec.Request) 
 
 func (proxy *Proxy) proxySadd(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
+
+	if req.ParamsLen() < 2 {
+		resp.WriteError(rstore.WrongReqArgsNumber)
+		return resp
+	}
+
+	k := req.P[0]
+
+	mLen := len(req.P) - 1
+	members := make([]string, len(req.P)-1)
+	for i := 0; i < mLen; i++ {
+		members[i] = req.P[i+1]
+	}
+
+	store, err := proxy.doRouter(isReadCmd, k)
+	if err != nil {
+		resp.WriteError(err)
+		return resp
+	}
+	n, err := store.SADD(k, members)
+	if err != nil {
+		resp.WriteError(err)
+	} else {
+		resp.WriteInt(n)
+	}
 	return resp
 }
 func (proxy *Proxy) proxyScard(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
+
+	if req.ParamsLen() != 1 {
+		resp.WriteError(rstore.WrongReqArgsNumber)
+		return resp
+	}
+
+	k := req.P[0]
+
+	store, err := proxy.doRouter(isReadCmd, k)
+	if err != nil {
+		resp.WriteError(err)
+		return resp
+	}
+	n, err := store.SCARD(k)
+	if err != nil {
+		resp.WriteError(err)
+	} else {
+		resp.WriteInt(n)
+	}
 	return resp
 }
 func (proxy *Proxy) proxySisMember(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
+	if req.ParamsLen() != 2 {
+		resp.WriteError(rstore.WrongReqArgsNumber)
+		return resp
+	}
+
+	k, m := req.P[0], req.P[1]
+	store, err := proxy.doRouter(isReadCmd, k)
+	if err != nil {
+		resp.WriteError(err)
+		return resp
+	}
+
+	exist, err := store.SISMEMBER(k, m)
+	if err != nil {
+		resp.WriteError(err)
+	} else {
+		if exist {
+			resp.WriteInt(1)
+		} else {
+
+			resp.WriteInt(0)
+		}
+	}
 	return resp
 }
 
 func (proxy *Proxy) proxySmembers(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
+
+	if req.ParamsLen() != 1 {
+		resp.WriteError(rstore.WrongReqArgsNumber)
+		return resp
+	}
+
+	k := req.P[0]
+
+	store, err := proxy.doRouter(isReadCmd, k)
+	if err != nil {
+		resp.WriteError(err)
+		return resp
+	}
+
+	members, err := store.SMEMBERS(k)
+	if err != nil {
+		resp.WriteError(err)
+	} else {
+		//kv pairs
+		out := make([]string, len(members))
+		var i int = 0
+		for _, v := range members {
+			out[i] = v
+			i++
+		}
+		resp.WriteStringBulk(out)
+	}
 	return resp
 }
 func (proxy *Proxy) proxySrem(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
+
+	if req.ParamsLen() < 2 {
+		resp.WriteError(rstore.WrongReqArgsNumber)
+		return resp
+	}
+
+	k := req.P[0]
+	mLen := len(req.P) - 1
+	members := make([]string, len(req.P)-1)
+	for i := 0; i < mLen; i++ {
+		members[i] = req.P[i+1]
+	}
+	store, err := proxy.doRouter(isReadCmd, k)
+	if err != nil {
+		resp.WriteError(err)
+		return resp
+	}
+
+	n, err := store.SREM(k, members)
+	if err != nil {
+		resp.WriteError(err)
+	} else {
+		resp.WriteInt(n)
+	}
 	return resp
 }

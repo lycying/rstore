@@ -14,11 +14,13 @@ import (
 var (
 	KV_UPDATE_SQL      = "insert into rstore_kv(\"rkey\",\"val\",\"lastTime\") values($1,$2,$3) on conflict(rkey) do update set \"val\"=$2,\"lastTime\"=$3"
 	KV_QUERY_VALUE_SQL = "select val from rstore_kv where \"rkey\" = $1"
+	KV_DEL_SQL         = "delete from rstore_kv where \"rkey\" = $1"
 
 	HASH_UPDATE_SQL      = "insert into rstore_hash(\"rkey\",\"hkey\",\"val\",\"lastTime\") values($1,$2,$3,$4) on conflict(rkey,hkey) do update set \"val\"=$3,\"lastTime\"=$4"
 	HASH_QUERY_VALUE_SQL = "select val from rstore_hash where \"rkey\" = $1 and \"hkey\" = $2 "
 	HASH_QUERY_ALL_SQL   = "select hkey,val from rstore_hash where \"rkey\" = $1"
 	HASH_DEL_HKEY_SQL    = "delete from rstore_hash where \"rkey\" = $1 and \"hkey\" = $2 "
+	HASH_DEL_ALL_SQL     = "delete from rstore_hash where \"rkey\" = $1 "
 	HASH_COUNT_SQL       = "select count(*) as num from rstore_hash where \"rkey\" = $1"
 
 	ZSET_UPDATE_SQL           = "insert into rstore_zset(\"rkey\",\"member\",\"score\",\"lastTime\") values($1,$2,$3,$4) on conflict(rkey,member) do update set \"score\"=$3,\"lastTime\"=$4"
@@ -31,6 +33,13 @@ var (
 	ZSET_ZRANGEBYSCORE_SQL    = "select member,score from rstore_zset where \"rkey\" = $1 and score>=$2 and score<=$3 order by score asc,member asc"
 	ZSET_ZRANGE_SQL           = "select member,score from rstore_zset where \"rkey\" = $1 order by score asc offset $2 limit $3 "
 	ZSET_ZRANK_SQL            = "select rank from (select member,rank() over (order by \"score\" asc, \"lastTime\" asc) as rank from rstore_zset where \"rkey\" = $1 ) m where m.\"member\"= $2;"
+
+	SET_UPDATE_SQL    = "insert into rstore_set(\"rkey\",\"member\",\"lastTime\") values($1,$2,$3) on conflict(rkey,member) do update set \"lastTime\"=$3"
+	SET_COUNT_SQL     = "select count(*) as num from rstore_set where \"rkey\" = $1"
+	SET_QUERY_ONE_SQL = "select member from rstore_set where \"rkey\" = $1 and \"member\" = $2 "
+	SET_QUERY_ALL_SQL = "select member from rstore_set where \"rkey\" = $1"
+	SET_DEL_ONE_SQL   = "delete from rstore_set where \"rkey\" = $1 and \"member\" = $2"
+	SET_DEL_ALL_SQL   = "delete from rstore_set where \"rkey\" = $1"
 )
 
 type Postgres struct {
@@ -529,17 +538,91 @@ func (pg *Postgres) ZREVRANGEWITHSCORE(rkey string, start int, end int) ([]strin
 }
 
 func (pg *Postgres) SADD(rkey string, members []string) (int, error) {
-	return 0, nil
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	lastTime := pg.timestamp()
+	stmt, err := tx.Prepare(SET_UPDATE_SQL)
+	defer stmt.Close()
+	for _, v := range members {
+		stmt.Exec(rkey, v, lastTime)
+	}
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+	return len(members), nil
 }
 func (pg *Postgres) SCARD(rkey string) (int, error) {
-	return 0, nil
+	var n string
+	rows, err := pg.db.Query(SET_COUNT_SQL, rkey)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			//ignore
+			err = nil
+		} else {
+			return 0, err
+		}
+	}
+	for rows.Next() {
+		err = rows.Scan(&n)
+		if err != nil {
+			return 0, err
+		}
+	}
+	num, err := strconv.ParseInt(n, 10, 32)
+	return int(num), err
 }
 func (pg *Postgres) SISMEMBER(rkey string, member string) (bool, error) {
+	var v string
+	err := pg.db.QueryRow(SET_QUERY_ONE_SQL, rkey, member).Scan(&v)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
 	return true, nil
 }
 func (pg *Postgres) SMEMBERS(rkey string) ([]string, error) {
-	return nil, nil
+	var m string
+	ret := make([]string, 0)
+
+	rows, err := pg.db.Query(SET_QUERY_ALL_SQL, rkey)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			//ignore
+			err = nil
+		} else {
+			return ret, err
+		}
+	}
+	for rows.Next() {
+		err = rows.Scan(&m)
+		ret = append(ret, m)
+		if err != nil {
+			return ret, err
+		}
+	}
+	return ret, nil
 }
 func (pg *Postgres) SREM(rkey string, members []string) (int, error) {
-	return 0, nil
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	stmt, err := tx.Prepare(SET_DEL_ONE_SQL)
+	defer stmt.Close()
+	for _, v := range members {
+		stmt.Exec(rkey, v)
+	}
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return 0, err
+	}
+	return len(members), nil
 }
