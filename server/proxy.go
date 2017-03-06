@@ -37,6 +37,7 @@ func newProxy() *Proxy {
 	proxy.gdt = map[string]*methodDef{
 		"TYPE":               newMethodDef(proxy.proxyType, true),
 		"EXISTS":             newMethodDef(proxy.exists, true),
+		"DEL":                newMethodDef(proxy.del, false),
 		"GET":                newMethodDef(proxy.get, true),
 		"SET":                newMethodDef(proxy.set, false),
 		"INCR":               newMethodDef(proxy.incr, false),
@@ -1081,5 +1082,27 @@ func (proxy *Proxy) proxyType(isReadCmd bool, req *codec.Request) *codec.Respons
 	} else {
 		resp.WriteInlineString(name)
 	}
+	return resp
+}
+
+func (proxy *Proxy) del(isReadCmd bool, req *codec.Request) *codec.Response {
+	resp := codec.NewResponse()
+
+	if req.ParamsLen() < 1 {
+		resp.WriteError(rstore.WrongReqArgsNumber)
+		return resp
+	}
+
+	af := 0
+	for _, v := range req.P {
+		store, err := proxy.doRouter(isReadCmd, v)
+		if err != nil {
+			resp.WriteError(err)
+			return resp
+		}
+		n, err := store.DEL(v)
+		af += n
+	}
+	resp.WriteInt(af)
 	return resp
 }
