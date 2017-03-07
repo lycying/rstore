@@ -1,3 +1,5 @@
+<img src="https://rawgithub.com/lycying/psd/master/rstore/header.png">
+
 `rstore`是一个使用**golang**实现的快速、轻量级的数据库中间件，可使用`redis`协议与其交互，根据路由规则，某类key可同时存放在`mysql`，`postgresql`，`redis`中（更多的后端如`hbase`也可以很容易支持）。为了方便配置管理，`restore`以插件形式提供了名为`eyes`的后台管理工具，访问任意节点的相应端口，即可进行web交互。
 
 `rstore`主要解决使用`redis`作为存储但容量有限的场景，通过将数据转移到传统db中，节省成本，你可以一半key存放在`postgresql`中，另一半存放在`mysql`中。`rstore`尽量让此过程平滑过渡，业务方无须关心数据的具体组织方式。
