@@ -8,9 +8,10 @@ const (
 	Shard_RefType_DBGroup = "dbgroup"
 	Shard_RefType_Shard   = "shard"
 
-	Shard_ShardType_Hash       = "hash"
-	Shard_ShardType_Mod	   = "mod"
-	Shard_ShardType_Range      = "range"
+	Shard_ShardType_Hash        = "hash"
+	Shard_ShardType_Mod         = "mod"
+	Shard_ShardType_Range       = "range"
+	Shard_ShardType_Ketama_Hash = "ketama_hash"
 )
 
 type DBer interface {
@@ -18,6 +19,9 @@ type DBer interface {
 
 type CfgBase struct {
 	DBer
+	//auto_eject_hosts
+	//server_retry_timeout
+	//server_failure_limit
 	Type   string
 	Name   string //UNIQUE
 	Enable bool
@@ -58,7 +62,11 @@ type CfgDBGroupItem struct {
 }
 
 type CfgDBGroup struct {
-	CfgBase
+	Type   string
+	Name   string //UNIQUE
+	Enable bool
+	Mark   string //you can write some usefull infomation here
+	State  int    //the flag show if the unit is used or not
 
 	ReplicateMode string
 	Items         []*CfgDBGroupItem
@@ -69,26 +77,6 @@ type ShardItem struct {
 	RefName  string //the real dbgroup or the sub-router
 	ShardStr string
 }
-
-// example
-// [0-1000]   :hash-router-magic-v2
-// [1000-2000]:redis-group-v30.cluster.com:6379
-
-// example
-// 0:redis-group-ok.com:9001
-// 1:pg-db-group-ok.com:9002
-// 2:redis-group-ok.com:9003
-// 3:redis-group-ok.com:9003
-// 4:redis-group-ok.com:9003
-// 5:redis-group-ok.com:9003
-// 6:redis-group-ok.com:9003
-// 7:redis-group-ok.com:9003
-// 8:redis-group-ok.com:9003
-// 9:redis-group-ok.com:9004
-
-// another example
-// foo: redis-cluster-001.com:6379
-// bar: redis-cluster-002.com:6379
 
 type CfgShard struct {
 	Name      string
@@ -107,6 +95,7 @@ type CfgRule struct {
 }
 
 type CfgPublic struct {
-	SaverType string
-	ConnStr   string
+	SaverType     string
+	SaveDirPrefix string
+	ConnStr       string
 }

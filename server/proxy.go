@@ -381,6 +381,7 @@ func (proxy *Proxy) hgetall(isReadCmd bool, req *codec.Request) *codec.Response 
 	return resp
 }
 
+//TODO mget is the real mget ? no! this should be changed !
 func (proxy *Proxy) hmget(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
