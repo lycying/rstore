@@ -49,5 +49,346 @@
 
 <img src="https://rawgithub.com/lycying/rstore/master/doc/tables.svg">
 ### 后台管理工具概览
+数据库节点列表，可设置连接池等
+
+<img src="https://rawgithub.com/lycying/psd/master/rstore/dbunit_list.png">
+
+组合数据库节点，组成数据库集群，如箭头所指为一主一丛节点
+<img src="https://rawgithub.com/lycying/psd/master/rstore/dbgroup_list.png">
+
+设置分片规则，规则条目可选择数据库集群，也可选择子分片规则
+<img src="https://rawgithub.com/lycying/psd/master/rstore/shard_list.png">
+
+正则匹配key列表，`hashslot`指明哪个group作为分区键，注意`0`表示整个的key
+<img src="https://rawgithub.com/lycying/psd/master/rstore/rule_list.png">
 
 ### schema
+```javascript
+var redisScm = {
+    "type": "object",
+    "title": "Redis",
+    "properties": {
+        "Type":{
+            "type":"string",
+            "enum": ["redis"],
+            "required":true
+        },
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "default": ""
+        },
+        "Enable":{
+            "type": "boolean",
+            "title": "If inused",
+            "format": "checkbox"
+        },
+        "Server": {
+            "type": "string",
+            "title": "Server",
+            "minLength": 2,
+            "default": "localhost"
+        },
+        "Port": {
+            "type": "integer",
+            "title": "Port",
+            "default": 6379,
+        },
+        "Mark": {
+            "type": "string",
+            "title": "Mark",
+            "format": "textarea",
+            "default": "",
+        },
+    },
+};
+var postgresScm = {
+    "type": "object",
+    "title": "Postgres",
+    "properties": {
+        "Type":{
+            "type":"string",
+            "enum": ["postgres"],
+            "required":true
+        },
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "default": ""
+        },
+        "Enable":{
+            "type": "boolean",
+            "title": "If inused",
+            "format": "checkbox"
+        },
+        "Url": {
+            "type": "string",
+            "title": "URL",
+            "minLength": 12,
+            "default": "postgres://postgres:postgres@localhost/postgres?sslmode=disable"
+        },
+        "MaxIdle": {
+            "type": "integer",
+            "title": "MaxIdle",
+            "default": 10,
+        },
+        "MaxOpen": {
+            "type": "integer",
+            "title": "MaxOpen",
+            "default": 10,
+        },
+        "MaxLifetime": {
+            "type": "integer",
+            "title": "MaxLifetime (Second)",
+            "default": 60,
+        },
+        "Mark": {
+            "type": "string",
+            "title": "Mark",
+            "format": "textarea",
+            "default": "",
+        },
+    },
+};
+var mysqlScm = {
+    "type": "object",
+    "title": "Mysql",
+    "properties": {
+        "Type":{
+            "type":"string",
+            "enum": ["mysql"],
+            "required":true
+        },
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "default": ""
+        },
+        "Enable":{
+            "type": "boolean",
+            "title": "If inused",
+            "format": "checkbox"
+        },
+        "Url": {
+            "type": "string",
+            "title": "URL",
+            "minLength": 12,
+            "default": "user:password@tcp(localhost:5555)/dbname?tls=skip-verify&autocommit=true"
+        },
+        "MaxIdle": {
+            "type": "integer",
+            "title": "MaxIdle",
+            "default": 10,
+        },
+        "MaxOpen": {
+            "type": "integer",
+            "title": "MaxOpen",
+            "default": 10,
+        },
+        "MaxLifetime": {
+            "type": "integer",
+            "title": "MaxLifetime (Second)",
+            "default": 60,
+        },
+        "Mark": {
+            "type": "string",
+            "title": "Mark",
+            "format": "textarea",
+            "default": "",
+        },
+    },
+};
+////////////////////////////////////////////
+//dbgroup
+var scm = {
+    "type": "object",
+    "title": "DB Group",
+    "properties": {
+        "Type":{
+            "type":"string",
+            "required":true,
+            "enum": ["redis","postgres","mysql"]
+        },
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "default": ""
+        },
+        "Enable":{
+            "type": "boolean",
+            "title": "If inused",
+            "format": "checkbox"
+        },
+        "ReplicateMode":{
+            "type": "string",
+            "title": "ReplicateMode",
+            "required":true,
+            "enum": ["writeall","writeone","discard"]
+        },
+        "Mark": {
+            "type": "string",
+            "title": "Mark",
+            "format": "textarea",
+            "default": "",
+        },
+        "Items":{
+            "type": "array",
+            "title":"DB Items",
+            "items":{
+                "type":"object",
+                "title":"DBGroup Item",
+                "properties": {
+                    "Name":{
+                        "type": "string",
+                        "title": "DBRef",
+                        "format": "select",
+                        "required":true,
+                        "enum": ["redis"]
+                    },
+                    "IsMaster":{
+                        "type": "boolean",
+                        "title": "Master",
+                        "format": "checkbox",
+                        "default":true,
+                    },
+                   "ReadWeight":{
+                        "type": "integer",
+                        "title": "ReadWeight",
+                        "default":1
+                    },
+
+                },
+            },
+        }
+    },
+};
+
+////////////////////////////////////////////
+//shard
+var scm = {
+    "type": "object",
+    "title": "Shard Defined",
+    "properties": {
+        "ShardType":{
+            "type":"string",
+            "ShardType":"string",
+            "required":true,
+            "enum": ["hash","mod","range","ketama_hash"],
+            "default":"hash"
+        },
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "default": ""
+        },
+        "ShardMap":{
+            "type": "array",
+            "uniqueItems": true,
+            "title":"Shard Map",
+            "items":{
+                "title":"Shard Item",
+                "oneOf": [
+                {
+                    "title":"dbgroup",
+                    "properties": {
+                        "RefName":{
+                            "type": "string",
+                            "title": "Reference Name",
+                            "format": "select",
+                            "required":true,
+                            "enum": []
+                        },
+                        "ShardStr":{
+                            "type": "string",
+                            "title": "ShardStr",
+                        },
+                        "RefType":{
+                            "type": "string",
+                            "title": "Reference Type",
+                            "format": "select",
+                            "required":true,
+                            "enum": ["dbgroup"],
+                            "minLength": 7,
+                        },
+
+                    },
+                },
+                {
+                    "title":"shard",
+                    "properties": {
+                        "RefName":{
+                            "type": "string",
+                            "title": "Reference Name",
+                            "format": "select",
+                            "required":true,
+                            "enum": []
+                        },
+                        "ShardStr":{
+                            "type": "string",
+                            "title": "ShardStr",
+                        },
+                        "RefType":{
+                            "type": "string",
+                            "title": "Reference Type)",
+                            "format": "select",
+                            "required":true,
+                            "enum": ["shard"],
+                            "minLength": 5,
+                        },
+
+                    },
+                },
+
+                ]
+            },
+        }
+    },
+};
+////////////////////////////////////////////
+//rule
+var scm = {
+    "type": "object",
+    "title": "Rule Defined",
+    "properties": {
+        "Name":{
+            "type":"string",
+            "title": "Supply a unique name",
+            "default": ""
+        },
+        "Order":{
+            "type":"integer",
+            "title": "Order",
+            "default": 0
+        },
+        "Regexp":{
+            "type":"string",
+            "title": "Regexp",
+            "minLength": 2,
+            "default": "app:(\\d+):age"
+        },
+        "HashSlot":{
+            "type":"integer",
+            "title": "HashSlot",
+            "default": 0
+        },
+        "ShardName":{
+            "type":"string",
+            "title": "ShardName",
+            "format": "select",
+            "required":true,
+            "enum": []
+        },
+        "Example":{
+            "type":"string",
+            "title": "Example",
+            "default": ""
+        },
+        "Mark":{
+            "type":"string",
+            "title": "Mark",
+            "format": "textarea",
+            "default": ""
+        },
+    },
+};
+```
