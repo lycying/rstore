@@ -571,26 +571,6 @@ func (proxy *Proxy) hincrby(isReadCmd bool, req *codec.Request) *codec.Response 
 	return resp
 }
 
-func (proxy *Proxy) EXISTS(key string) (bool, error) {
-	return false, nil
-}
-func (proxy *Proxy) DEL(key string) error {
-	return nil
-}
-
-func (proxy *Proxy) EXPIRE(key string, expireSeconds int) (int64, error) {
-	return 0, nil
-}
-func (proxy *Proxy) EXPIREAT(key string, expireAt int) (int64, error) {
-	return 0, nil
-}
-func (proxy *Proxy) TTL(key string) (int64, error) {
-	return 0, nil
-}
-func (proxy *Proxy) TYPE(key string) (string, error) {
-	return "", nil
-}
-
 func (proxy *Proxy) zadd(isReadCmd bool, req *codec.Request) *codec.Response {
 	resp := codec.NewResponse()
 
@@ -1106,4 +1086,14 @@ func (proxy *Proxy) del(isReadCmd bool, req *codec.Request) *codec.Response {
 	}
 	resp.WriteInt(af)
 	return resp
+}
+
+func (proxy *Proxy) EXPIRE(key string, expireSeconds int) (int64, error) {
+	return 0, nil
+}
+func (proxy *Proxy) EXPIREAT(key string, expireAt int) (int64, error) {
+	return 0, nil
+}
+func (proxy *Proxy) TTL(key string) (int64, error) {
+	return 0, nil
 }
